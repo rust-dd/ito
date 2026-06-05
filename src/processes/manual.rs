@@ -8,6 +8,7 @@ use rand_distr::Distribution;
 use rand_distr::Normal;
 use stochastic_rs_stochastic::correlation::transformed_ou::TransformedOU;
 use stochastic_rs_stochastic::correlation::transformed_ou::Transformation;
+use stochastic_rs_stochastic::diffusion::cfou::Cfou;
 use stochastic_rs_stochastic::jump::bates::Bates1996;
 use stochastic_rs_stochastic::jump::jump_fou::JumpFou;
 use stochastic_rs_stochastic::jump::kou::Kou;
@@ -26,6 +27,7 @@ use crate::registry::ParamKind;
 use crate::registry::ParamSpec;
 use crate::registry::ParamValues;
 use crate::registry::ProcessDescriptor;
+use crate::registry::adapters::ComplexPath;
 use crate::registry::adapters::MultiDim;
 use crate::registry::adapters::Path1D;
 
@@ -354,5 +356,37 @@ inventory::submit! {
             ParamSpec { name: "use_sym", kind: ParamKind::OptBool, default: ParamDefault::OptBool(Some(true)), doc: "Symmetrise" },
         ],
         build: build_bates,
+    }
+}
+
+fn build_cfou(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(ComplexPath(Cfou::<f64>::new(
+        values.f64("hurst"),
+        values.f64("lambda"),
+        values.f64("omega"),
+        values.f64("a"),
+        values.usize("n"),
+        values.opt_f64("x1_0"),
+        values.opt_f64("x2_0"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Cfou",
+        category: Category::Diffusion,
+        params: &[
+            ParamSpec { name: "hurst", kind: ParamKind::F64, default: ParamDefault::F64(0.7), doc: "Hurst exponent" },
+            ParamSpec { name: "lambda", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Reversion speed" },
+            ParamSpec { name: "omega", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Angular frequency" },
+            ParamSpec { name: "a", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Amplitude" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "x1_0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.5)), doc: "Initial real part" },
+            ParamSpec { name: "x2_0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.5)), doc: "Initial imag part" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_cfou,
     }
 }

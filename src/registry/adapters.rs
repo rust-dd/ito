@@ -5,6 +5,7 @@
 //! processes, since not every model carries a time horizon).
 
 use ndarray::Array1;
+use num_complex::Complex;
 use stochastic_rs_stochastic::ProcessExt;
 
 use crate::registry::ChartSource;
@@ -57,6 +58,32 @@ where
                         series(comp, name.to_string())
                     })
                     .collect()
+            })
+            .collect()
+    }
+}
+
+/// Adapter for complex-valued scalar paths (`Output = Array1<Complex<f64>>`),
+/// charting the real and imaginary parts as two components.
+pub struct ComplexPath<P>(pub P);
+
+impl<P> ChartSource for ComplexPath<P>
+where
+    P: ProcessExt<f64, Output = Array1<Complex<f64>>>,
+{
+    fn sample_par(&self, m: usize) -> Vec<Vec<NamedSeries>> {
+        self.0
+            .sample_par(m)
+            .iter()
+            .map(|path| {
+                let real: Vec<(f64, f64)> =
+                    path.iter().enumerate().map(|(i, z)| (i as f64, z.re)).collect();
+                let imag: Vec<(f64, f64)> =
+                    path.iter().enumerate().map(|(i, z)| (i as f64, z.im)).collect();
+                vec![
+                    NamedSeries { label: "real".to_string(), points: real },
+                    NamedSeries { label: "imag".to_string(), points: imag },
+                ]
             })
             .collect()
     }
