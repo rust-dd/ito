@@ -248,9 +248,11 @@ def emit():
                   "use crate::process;\n" + "\n".join(sorted(set(uses))) + "\n\n")
         open(os.path.join(OUT, f"{cat}.rs"), "w").write(header + "\n\n".join(blocks) + "\n")
         print(f"wrote {cat}.rs: {len(blocks)} processes")
+    all_mods = sorted(mods) + ["manual"]
     modrs = ("//! Process registrations grouped by category. Each submodule populates the\n"
-             "//! global registry through the `process!` macro.\n\n"
-             + "\n".join(f"pub mod {m};" for m in sorted(mods)) + "\n")
+             "//! global registry through the `process!` macro, plus hand-written\n"
+             "//! `manual` registrations for non-scalar constructors.\n\n"
+             + "\n".join(f"pub mod {m};" for m in all_mods) + "\n")
     open(os.path.join(OUT, "mod.rs"), "w").write(modrs)
     print(f"wrote mod.rs: {sorted(mods)}  total={grand}")
 
