@@ -12,6 +12,7 @@ macro_rules! ito_param_kind {
     (f64) => { $crate::registry::ParamKind::F64 };
     (usize) => { $crate::registry::ParamKind::Usize };
     (opt_f64) => { $crate::registry::ParamKind::OptF64 };
+    (opt_usize) => { $crate::registry::ParamKind::OptUsize };
     (opt_bool) => { $crate::registry::ParamKind::OptBool };
 }
 
@@ -20,6 +21,7 @@ macro_rules! ito_param_default {
     (f64, $d:expr) => { $crate::registry::ParamDefault::F64($d) };
     (usize, $d:expr) => { $crate::registry::ParamDefault::Usize($d) };
     (opt_f64, $d:expr) => { $crate::registry::ParamDefault::OptF64($d) };
+    (opt_usize, $d:expr) => { $crate::registry::ParamDefault::OptUsize($d) };
     (opt_bool, $d:expr) => { $crate::registry::ParamDefault::OptBool($d) };
 }
 
@@ -28,6 +30,7 @@ macro_rules! ito_param_get {
     (f64, $v:expr, $name:expr) => { $v.f64($name) };
     (usize, $v:expr, $name:expr) => { $v.usize($name) };
     (opt_f64, $v:expr, $name:expr) => { $v.opt_f64($name) };
+    (opt_usize, $v:expr, $name:expr) => { $v.opt_usize($name) };
     (opt_bool, $v:expr, $name:expr) => { $v.opt_bool($name) };
 }
 

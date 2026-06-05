@@ -72,9 +72,10 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let processes = registry();
+        let initial = processes.iter().position(|d| d.name == "Gbm").unwrap_or(0);
         let mut list_state = ListState::default();
         if !processes.is_empty() {
-            list_state.select(Some(0));
+            list_state.select(Some(initial));
         }
         let mut app = Self {
             processes,
@@ -121,6 +122,7 @@ impl App {
                     crate::registry::ParamDefault::F64(v) => format_f64(v),
                     crate::registry::ParamDefault::Usize(v) => v.to_string(),
                     crate::registry::ParamDefault::OptF64(v) => opt_to_string(v, format_f64),
+                    crate::registry::ParamDefault::OptUsize(v) => opt_to_string(v, |u| u.to_string()),
                     crate::registry::ParamDefault::OptBool(v) => opt_to_string(v, |b| b.to_string()),
                 };
                 fields.push(Field {
@@ -168,14 +170,28 @@ impl App {
             }
         }
 
-        let source = (desc.build)(&values);
-        let samples = source.sample_par(paths);
-        self.series = samples.into_iter().flatten().collect();
-        self.status = format!(
-            "Generated {paths} path(s) of {} · {} series",
-            desc.name,
-            self.series.len()
-        );
+        let build = desc.build;
+        let previous_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            build(&values).sample_par(paths)
+        }));
+        std::panic::set_hook(previous_hook);
+        match outcome {
+            Ok(samples) => {
+                self.series = samples.into_iter().flatten().collect();
+                self.status = format!(
+                    "Generated {paths} path(s) of {} · {} series",
+                    desc.name,
+                    self.series.len()
+                );
+            }
+            Err(_) => {
+                self.series.clear();
+                self.status =
+                    format!("{} panicked while sampling — adjust its parameters", desc.name);
+            }
+        }
     }
 
     /// Data bounds across all generated series, padded for display.
@@ -222,6 +238,15 @@ fn parse_param(kind: ParamKind, raw: &str) -> Result<ParamValue, String> {
                 s.parse::<f64>()
                     .map(|v| ParamValue::OptF64(Some(v)))
                     .map_err(|_| "expected a number or 'none'".to_string())
+            }
+        }
+        ParamKind::OptUsize => {
+            if is_none(s) {
+                Ok(ParamValue::OptUsize(None))
+            } else {
+                s.parse::<usize>()
+                    .map(|v| ParamValue::OptUsize(Some(v)))
+                    .map_err(|_| "expected an integer or 'none'".to_string())
             }
         }
         ParamKind::OptBool => {
@@ -308,6 +333,32 @@ mod tests {
         handle_key(&mut app, KeyEvent::from(KeyCode::Down));
         let second = app.selected().unwrap().name;
         assert_ne!(first, second);
+    }
+
+    #[test]
+    fn every_registered_process_generates_or_is_caught() {
+        let mut app = App::new();
+        let total = app.visible().len();
+        assert!(total >= 50, "expected the full registry, got {total}");
+        let mut ok = 0;
+        let mut failed = Vec::new();
+        for i in 0..total {
+            app.list_state.select(Some(i));
+            app.rebuild_fields();
+            let last = app.fields.len() - 1;
+            app.fields[last].buffer = "1".to_string();
+            app.generate();
+            if app.series.is_empty() {
+                failed.push(app.selected().unwrap().name);
+            } else {
+                ok += 1;
+            }
+        }
+        eprintln!("generate: ok={ok}/{total} failed={failed:?}");
+        assert!(
+            ok * 100 / total >= 70,
+            "only {ok}/{total} processes generated with default parameters: {failed:?}"
+        );
     }
 
     #[test]

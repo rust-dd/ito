@@ -25,8 +25,9 @@ use crate::app::state::Focus;
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let outer = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).split(area);
-    let top_h = (app.fields.len() as u16 + 4).clamp(9, 20);
-    let rows = Layout::vertical([Constraint::Length(top_h), Constraint::Min(6)]).split(outer[0]);
+    // Fixed top height so the panes don't jump as processes with different
+    // parameter counts are selected; long forms scroll within this area.
+    let rows = Layout::vertical([Constraint::Length(16), Constraint::Min(6)]).split(outer[0]);
     let cols =
         Layout::horizontal([Constraint::Percentage(34), Constraint::Percentage(66)]).split(rows[0]);
 
@@ -109,7 +110,13 @@ fn draw_form(frame: &mut Frame, app: &App, area: Rect) {
         )));
     }
 
-    let para = Paragraph::new(lines).block(
+    let inner_h = area.height.saturating_sub(2) as usize;
+    let scroll = if active && app.field_idx + 2 >= inner_h {
+        (app.field_idx + 2 - inner_h).min(lines.len().saturating_sub(inner_h)) as u16
+    } else {
+        0
+    };
+    let para = Paragraph::new(lines).scroll((scroll, 0)).block(
         Block::bordered()
             .title(format!(" Parameters \u{00b7} {name} "))
             .border_style(pane_style(active)),

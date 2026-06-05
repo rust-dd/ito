@@ -25,6 +25,7 @@ pub enum ParamKind {
     F64,
     Usize,
     OptF64,
+    OptUsize,
     OptBool,
 }
 
@@ -35,6 +36,7 @@ impl ParamKind {
             ParamKind::F64 => "f64",
             ParamKind::Usize => "uint",
             ParamKind::OptF64 => "f64?",
+            ParamKind::OptUsize => "uint?",
             ParamKind::OptBool => "bool?",
         }
     }
@@ -46,6 +48,7 @@ pub enum ParamDefault {
     F64(f64),
     Usize(usize),
     OptF64(Option<f64>),
+    OptUsize(Option<usize>),
     OptBool(Option<bool>),
 }
 
@@ -64,11 +67,8 @@ pub enum Category {
     Volatility,
     Jump,
     Interest,
-    Autoregressive,
     Rough,
-    Noise,
     Correlation,
-    Process,
 }
 
 impl Category {
@@ -78,11 +78,8 @@ impl Category {
             Category::Volatility => "Volatility",
             Category::Jump => "Jump",
             Category::Interest => "Interest",
-            Category::Autoregressive => "Autoregressive",
             Category::Rough => "Rough",
-            Category::Noise => "Noise",
             Category::Correlation => "Correlation",
-            Category::Process => "Process",
         }
     }
 }
@@ -93,6 +90,7 @@ pub enum ParamValue {
     F64(f64),
     Usize(usize),
     OptF64(Option<f64>),
+    OptUsize(Option<usize>),
     OptBool(Option<bool>),
 }
 
@@ -124,6 +122,13 @@ impl ParamValues {
     pub fn opt_f64(&self, name: &str) -> Option<f64> {
         match self.map.get(name) {
             Some(ParamValue::OptF64(v)) => *v,
+            _ => None,
+        }
+    }
+
+    pub fn opt_usize(&self, name: &str) -> Option<usize> {
+        match self.map.get(name) {
+            Some(ParamValue::OptUsize(v)) => *v,
             _ => None,
         }
     }
