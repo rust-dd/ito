@@ -7,12 +7,19 @@ use ndarray::Array1;
 use ndarray::Array2;
 use rand::Rng;
 use rand_distr::Distribution;
+use rand_distr::Exp;
 use rand_distr::Normal;
 use stochastic_rs_stochastic::correlation::transformed_ou::TransformedOU;
 use stochastic_rs_stochastic::correlation::transformed_ou::Transformation;
 use stochastic_rs_stochastic::diffusion::cfou::Cfou;
+use stochastic_rs_stochastic::diffusion::cir::Cir;
+use stochastic_rs_stochastic::interest::cir_2f::Cir2F;
+use stochastic_rs_stochastic::interest::ho_lee::HoLee;
+use stochastic_rs_stochastic::interest::hull_white::HullWhite;
+use stochastic_rs_stochastic::interest::hull_white_2f::HullWhite2F;
 use stochastic_rs_stochastic::jump::bates::Bates1996;
 use stochastic_rs_stochastic::jump::jump_fou::JumpFou;
+use stochastic_rs_stochastic::jump::jump_fou_custom::JumpFOUCustom;
 use stochastic_rs_stochastic::jump::kou::Kou;
 use stochastic_rs_stochastic::jump::levy_diffusion::LevyDiffusion;
 use stochastic_rs_stochastic::jump::merton::Merton;
@@ -423,5 +430,177 @@ inventory::submit! {
             ParamSpec { name: "t_max", kind: ParamKind::F64, default: ParamDefault::F64(10.0), doc: "Time horizon" },
         ],
         build: build_multivariate_hawkes,
+    }
+}
+
+/// Flat 3% forward curve used to pin the callable term-structure arguments of
+/// the Hull-White / Ho-Lee / 2-factor models.
+fn flat_curve(_: f64) -> f64 {
+    0.03
+}
+
+fn build_hull_white(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(HullWhite::<f64>::new(
+        flat_curve as fn(f64) -> f64,
+        values.f64("alpha"),
+        values.f64("sigma"),
+        values.usize("n"),
+        values.opt_f64("x0"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "HullWhite",
+        category: Category::Interest,
+        params: &[
+            ParamSpec { name: "alpha", kind: ParamKind::F64, default: ParamDefault::F64(0.1), doc: "Reversion speed" },
+            ParamSpec { name: "sigma", kind: ParamKind::F64, default: ParamDefault::F64(0.01), doc: "Diffusion scale" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.03)), doc: "Initial rate" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_hull_white,
+    }
+}
+
+fn build_ho_lee(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(HoLee::<f64>::new(
+        None,
+        values.opt_f64("theta"),
+        values.f64("sigma"),
+        values.usize("n"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "HoLee",
+        category: Category::Interest,
+        params: &[
+            ParamSpec { name: "theta", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.02)), doc: "Drift" },
+            ParamSpec { name: "sigma", kind: ParamKind::F64, default: ParamDefault::F64(0.01), doc: "Diffusion scale" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_ho_lee,
+    }
+}
+
+fn build_hull_white_2f(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(MultiDim {
+        process: HullWhite2F::<f64>::new(
+            flat_curve as fn(f64) -> f64,
+            values.f64("theta"),
+            values.f64("sigma1"),
+            values.f64("sigma2"),
+            values.f64("rho"),
+            values.f64("b"),
+            values.opt_f64("x0"),
+            values.opt_f64("t"),
+            values.usize("n"),
+            Unseeded,
+        ),
+        components: &["factor 1", "factor 2"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "HullWhite2F",
+        category: Category::Interest,
+        params: &[
+            ParamSpec { name: "theta", kind: ParamKind::F64, default: ParamDefault::F64(0.03), doc: "Long-run level" },
+            ParamSpec { name: "sigma1", kind: ParamKind::F64, default: ParamDefault::F64(0.01), doc: "Factor 1 vol" },
+            ParamSpec { name: "sigma2", kind: ParamKind::F64, default: ParamDefault::F64(0.005), doc: "Factor 2 vol" },
+            ParamSpec { name: "rho", kind: ParamKind::F64, default: ParamDefault::F64(-0.5), doc: "Correlation" },
+            ParamSpec { name: "b", kind: ParamKind::F64, default: ParamDefault::F64(0.1), doc: "Second reversion" },
+            ParamSpec { name: "x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.03)), doc: "Initial rate" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+        ],
+        build: build_hull_white_2f,
+    }
+}
+
+fn build_cir_2f(values: &ParamValues) -> Box<dyn ChartSource> {
+    let x = Cir::<f64>::new(
+        values.f64("x_theta"),
+        values.f64("x_mu"),
+        values.f64("x_sigma"),
+        values.usize("n"),
+        values.opt_f64("x_x0"),
+        values.opt_f64("t"),
+        Some(true),
+        Unseeded,
+    );
+    let y = Cir::<f64>::new(
+        values.f64("y_theta"),
+        values.f64("y_mu"),
+        values.f64("y_sigma"),
+        values.usize("n"),
+        values.opt_f64("y_x0"),
+        values.opt_f64("t"),
+        Some(true),
+        Unseeded,
+    );
+    Box::new(Path1D(Cir2F::new(x, y, flat_curve as fn(f64) -> f64, Unseeded)))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Cir2F",
+        category: Category::Interest,
+        params: &[
+            ParamSpec { name: "x_theta", kind: ParamKind::F64, default: ParamDefault::F64(2.0), doc: "Factor 1 reversion" },
+            ParamSpec { name: "x_mu", kind: ParamKind::F64, default: ParamDefault::F64(0.03), doc: "Factor 1 mean" },
+            ParamSpec { name: "x_sigma", kind: ParamKind::F64, default: ParamDefault::F64(0.05), doc: "Factor 1 vol" },
+            ParamSpec { name: "x_x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.03)), doc: "Factor 1 start" },
+            ParamSpec { name: "y_theta", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Factor 2 reversion" },
+            ParamSpec { name: "y_mu", kind: ParamKind::F64, default: ParamDefault::F64(0.02), doc: "Factor 2 mean" },
+            ParamSpec { name: "y_sigma", kind: ParamKind::F64, default: ParamDefault::F64(0.03), doc: "Factor 2 vol" },
+            ParamSpec { name: "y_x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.02)), doc: "Factor 2 start" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_cir_2f,
+    }
+}
+
+fn build_jump_fou_custom(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(JumpFOUCustom::new(
+        values.f64("hurst"),
+        values.f64("theta"),
+        values.f64("mu"),
+        values.f64("sigma"),
+        values.usize("n"),
+        values.opt_f64("x0"),
+        values.opt_f64("t"),
+        Exp::new(values.f64("lambda").max(0.01)).unwrap(),
+        Exp::new((1.0 / values.f64("jump_scale").max(0.01)).max(0.01)).unwrap(),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "JumpFOUCustom",
+        category: Category::Jump,
+        params: &[
+            ParamSpec { name: "hurst", kind: ParamKind::F64, default: ParamDefault::F64(0.7), doc: "Hurst exponent" },
+            ParamSpec { name: "theta", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Reversion speed" },
+            ParamSpec { name: "mu", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Long-run mean" },
+            ParamSpec { name: "sigma", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Diffusion scale" },
+            ParamSpec { name: "lambda", kind: ParamKind::F64, default: ParamDefault::F64(20.0), doc: "Jump-time rate" },
+            ParamSpec { name: "jump_scale", kind: ParamKind::F64, default: ParamDefault::F64(0.1), doc: "Mean jump size" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.5)), doc: "Initial value" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_jump_fou_custom,
     }
 }
