@@ -103,7 +103,7 @@ process! {
     category: Diffusion,
     output: Path1D,
     params: [
-        hurst   : f64      = 0.7 ; "Hurst exponent",
+        hurst   : f64      = 0.4 ; "Hurst exponent",
         theta   : f64      = 0.5 ; "Mean / reversion",
         mu      : f64      = 0.1 ; "Drift / mean",
         sigma   : f64      = 0.2 ; "Diffusion scale",
@@ -151,7 +151,7 @@ process! {
     category: Diffusion,
     output: Path1D,
     params: [
-        hurst : f64     = 0.7 ; "Hurst exponent",
+        hurst : f64     = 0.4 ; "Hurst exponent",
         mu    : f64     = 0.05 ; "Drift / mean",
         sigma : f64     = 0.2 ; "Diffusion scale",
         n     : usize   = 1000 ; "Steps",
@@ -166,9 +166,9 @@ process! {
     category: Diffusion,
     output: Path1D,
     params: [
-        hurst : f64     = 0.7 ; "Hurst exponent",
-        alpha : f64     = 0.5 ; "alpha",
-        beta  : f64     = 0.5 ; "beta",
+        hurst : f64     = 0.4 ; "Hurst exponent",
+        alpha : f64     = 0.3 ; "alpha",
+        beta  : f64     = 0.7 ; "beta",
         sigma : f64     = 0.2 ; "Diffusion scale",
         n     : usize   = 1000 ; "Steps",
         x0    : opt_f64 = Some(0.5) ; "Initial value",
@@ -182,7 +182,7 @@ process! {
     category: Diffusion,
     output: Path1D,
     params: [
-        hurst : f64     = 0.7 ; "Hurst exponent",
+        hurst : f64     = 0.4 ; "Hurst exponent",
         theta : f64     = 1.0 ; "Mean / reversion",
         mu    : f64     = 1.0 ; "Drift / mean",
         sigma : f64     = 0.3 ; "Diffusion scale",
@@ -292,8 +292,8 @@ process! {
     category: Diffusion,
     output: Path1D,
     params: [
-        alpha : f64     = 0.5 ; "alpha",
-        beta  : f64     = 0.5 ; "beta",
+        alpha : f64     = 0.3 ; "alpha",
+        beta  : f64     = 0.7 ; "beta",
         sigma : f64     = 0.2 ; "Diffusion scale",
         n     : usize   = 1000 ; "Steps",
         x0    : opt_f64 = Some(0.5) ; "Initial value",

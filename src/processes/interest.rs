@@ -64,7 +64,7 @@ process! {
     category: Interest,
     output: Path1D,
     params: [
-        hurst : f64     = 0.7 ; "Hurst exponent",
+        hurst : f64     = 0.4 ; "Hurst exponent",
         theta : f64     = 0.5 ; "Mean / reversion",
         mu    : f64     = 0.1 ; "Drift / mean",
         sigma : f64     = 0.2 ; "Diffusion scale",

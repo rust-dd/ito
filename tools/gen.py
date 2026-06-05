@@ -141,9 +141,10 @@ def report():
 OUT = "/Users/danixx/Desktop/ito/src/processes"
 
 F64_DEFAULTS = {
-    "hurst": "0.7", "rho": "-0.5", "rho1": "-0.5", "rho2": "-0.5", "rho3": "-0.5",
+    "hurst": "0.4", "rho": "-0.5", "rho1": "-0.5", "rho2": "-0.5", "rho3": "-0.5",
     "sigma": "0.2", "sigma1": "0.2", "sigma2": "0.2", "sigma3": "0.2", "sigmav": "0.2",
-    "vol": "0.2", "eta": "0.4", "xi": "0.04", "nu": "0.2", "omega": "0.2", "epsilon": "0.3",
+    "vol": "0.2", "eta": "0.4", "eta1": "3.0", "eta2": "3.0",
+    "xi": "0.04", "nu": "0.2", "omega": "0.2", "epsilon": "0.3",
     "mu": "0.1", "kappa": "1.5", "theta": "0.5", "lambda": "1.0",
     "alpha": "0.5", "beta": "0.5", "gamma": "0.5", "delta": "0.5",
     "a": "0.5", "b": "0.5", "c": "1.0", "k": "1.0", "m": "5.0", "g": "5.0", "y": "0.5", "r": "0.03",
@@ -160,6 +161,9 @@ OVERRIDES = {
     ("Cir", "theta"): "2.0", ("Cir", "mu"): "0.5",
     ("Fou", "theta"): "1.0", ("Fou", "mu"): "1.0", ("Fou", "sigma"): "0.3",
     ("Cev", "mu"): "0.05", ("Cev", "sigma"): "0.3", ("Cev", "gamma"): "0.8", ("Cev", "x0"): "Some(100.0)",
+    ("Jacobi", "alpha"): "0.3", ("Jacobi", "beta"): "0.7",
+    ("FJacobi", "alpha"): "0.3", ("FJacobi", "beta"): "0.7",
+    ("HawkesJD", "alpha"): "0.5", ("HawkesJD", "beta"): "1.5",
 }
 DOCS = {
     "n": "Steps", "t": "Horizon", "hurst": "Hurst exponent", "mu": "Drift / mean",
@@ -174,7 +178,10 @@ def default_for(struct, name, kind):
         return OVERRIDES[(struct, name)]
     nm = name.lower()
     if kind == "f64": return F64_DEFAULTS.get(nm, "0.5")
-    if kind == "usize": return "1000" if nm == "n" else "1"
+    if kind == "usize":
+        if nm == "n": return "1000"
+        if nm == "j": return "50"
+        return "1"
     if kind == "opt_f64": return OPT_F64_DEFAULTS.get(nm, "Some(0.5)")
     if kind == "opt_usize": return "Some(1)"
     if kind == "opt_bool": return "Some(true)"

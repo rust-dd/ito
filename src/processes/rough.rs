@@ -12,7 +12,7 @@ process! {
     category: Rough,
     output: Path1D,
     params: [
-        hurst  : f64       = 0.7 ; "Hurst exponent",
+        hurst  : f64       = 0.4 ; "Hurst exponent",
         s0     : f64       = 0.5 ; "Initial spot",
         r      : f64       = 0.03 ; "r",
         sigma  : f64       = 0.2 ; "Diffusion scale",
@@ -28,7 +28,7 @@ process! {
     category: Rough,
     output: Path1D,
     params: [
-        hurst  : f64       = 0.7 ; "Hurst exponent",
+        hurst  : f64       = 0.4 ; "Hurst exponent",
         n      : usize     = 1000 ; "Steps",
         t      : opt_f64   = Some(1.0) ; "Horizon",
         degree : opt_usize = Some(1) ; "Approximation degree",
@@ -41,7 +41,7 @@ process! {
     category: Rough,
     output: Path1D,
     params: [
-        hurst  : f64       = 0.7 ; "Hurst exponent",
+        hurst  : f64       = 0.4 ; "Hurst exponent",
         kappa  : f64       = 1.5 ; "Reversion speed",
         mu     : f64       = 0.1 ; "Drift / mean",
         sigma  : f64       = 0.2 ; "Diffusion scale",
@@ -58,7 +58,7 @@ process! {
     category: Rough,
     output: MultiDim,
     params: [
-        hurst  : f64       = 0.7 ; "Hurst exponent",
+        hurst  : f64       = 0.4 ; "Hurst exponent",
         s0     : opt_f64   = Some(100.0) ; "Initial spot",
         v0     : opt_f64   = Some(0.04) ; "Initial variance",
         kappa  : f64       = 1.5 ; "Reversion speed",
