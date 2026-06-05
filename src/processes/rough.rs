@@ -11,6 +11,7 @@ process! {
     ty: RlBlackScholes<f64>,
     category: Rough,
     output: Path1D,
+    components: [],
     params: [
         hurst  : f64       = 0.4 ; "Hurst exponent",
         s0     : f64       = 0.5 ; "Initial spot",
@@ -27,6 +28,7 @@ process! {
     ty: RlFBm<f64>,
     category: Rough,
     output: Path1D,
+    components: [],
     params: [
         hurst  : f64       = 0.4 ; "Hurst exponent",
         n      : usize     = 1000 ; "Steps",
@@ -40,6 +42,7 @@ process! {
     ty: RlFOU<f64>,
     category: Rough,
     output: Path1D,
+    components: [],
     params: [
         hurst  : f64       = 0.4 ; "Hurst exponent",
         kappa  : f64       = 1.5 ; "Reversion speed",
@@ -57,6 +60,7 @@ process! {
     ty: RlHeston<f64>,
     category: Rough,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         hurst  : f64       = 0.4 ; "Hurst exponent",
         s0     : opt_f64   = Some(100.0) ; "Initial spot",

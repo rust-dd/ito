@@ -35,6 +35,7 @@ process! {
     ty: AitSahalia<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         am1 : f64     = 0.5 ; "am1",
         a0  : f64     = 0.5 ; "a0",
@@ -55,6 +56,7 @@ process! {
     ty: Cev<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         mu    : f64     = 0.05 ; "Drift / mean",
         sigma : f64     = 0.3 ; "Diffusion scale",
@@ -70,6 +72,7 @@ process! {
     ty: Cir<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         theta   : f64      = 2.0 ; "Mean / reversion",
         mu      : f64      = 0.5 ; "Drift / mean",
@@ -86,6 +89,7 @@ process! {
     ty: Ckls<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         theta1 : f64     = 0.5 ; "theta1",
         theta2 : f64     = 0.5 ; "theta2",
@@ -102,6 +106,7 @@ process! {
     ty: Fcir<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         hurst   : f64      = 0.4 ; "Hurst exponent",
         theta   : f64      = 0.5 ; "Mean / reversion",
@@ -119,6 +124,7 @@ process! {
     ty: FellerLogistic<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         kappa   : f64      = 1.5 ; "Reversion speed",
         theta   : f64      = 0.5 ; "Mean / reversion",
@@ -135,6 +141,7 @@ process! {
     ty: FellerRoot<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         theta1 : f64     = 0.5 ; "theta1",
         theta2 : f64     = 0.5 ; "theta2",
@@ -150,6 +157,7 @@ process! {
     ty: Fgbm<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         hurst : f64     = 0.4 ; "Hurst exponent",
         mu    : f64     = 0.05 ; "Drift / mean",
@@ -165,6 +173,7 @@ process! {
     ty: FJacobi<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         hurst : f64     = 0.4 ; "Hurst exponent",
         alpha : f64     = 0.3 ; "alpha",
@@ -181,6 +190,7 @@ process! {
     ty: Fou<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         hurst : f64     = 0.4 ; "Hurst exponent",
         theta : f64     = 1.0 ; "Mean / reversion",
@@ -197,6 +207,7 @@ process! {
     ty: FouqueOU2D<f64>,
     category: Diffusion,
     output: MultiDim,
+    components: ["x1", "x2"],
     params: [
         kappa   : f64     = 1.5 ; "Reversion speed",
         theta   : f64     = 0.5 ; "Mean / reversion",
@@ -214,6 +225,7 @@ process! {
     ty: Gbm<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         mu    : f64     = 0.05 ; "Drift / mean",
         sigma : f64     = 0.2 ; "Diffusion scale",
@@ -228,6 +240,7 @@ process! {
     ty: GbmLog<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         mu    : opt_f64 = Some(0.1) ; "Drift / mean",
         b     : opt_f64 = Some(0.1) ; "b",
@@ -245,6 +258,7 @@ process! {
     ty: Gompertz<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         a     : f64     = 0.5 ; "a",
         b     : f64     = 0.5 ; "b",
@@ -260,6 +274,7 @@ process! {
     ty: Hyperbolic<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         sigma : f64     = 0.2 ; "Diffusion scale",
@@ -274,6 +289,7 @@ process! {
     ty: Hyperbolic2<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         beta  : f64     = 0.5 ; "beta",
         gamma : f64     = 0.5 ; "gamma",
@@ -291,6 +307,7 @@ process! {
     ty: Jacobi<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         alpha : f64     = 0.3 ; "alpha",
         beta  : f64     = 0.7 ; "beta",
@@ -306,6 +323,7 @@ process! {
     ty: Kimura<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         a     : f64     = 0.5 ; "a",
         sigma : f64     = 0.2 ; "Diffusion scale",
@@ -320,6 +338,7 @@ process! {
     ty: LinearSDE<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         a  : f64     = 0.5 ; "a",
         b  : f64     = 0.5 ; "b",
@@ -335,6 +354,7 @@ process! {
     ty: Logistic<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         a  : f64     = 0.5 ; "a",
         b  : f64     = 0.5 ; "b",
@@ -349,6 +369,7 @@ process! {
     ty: ModifiedCIR<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         sigma : f64     = 0.2 ; "Diffusion scale",
@@ -363,6 +384,7 @@ process! {
     ty: NonLinearSDE<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         am1 : f64     = 0.5 ; "am1",
         a0  : f64     = 0.5 ; "a0",
@@ -383,6 +405,7 @@ process! {
     ty: Ou<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         theta : f64     = 1.0 ; "Mean / reversion",
         mu    : f64     = 1.2 ; "Drift / mean",
@@ -398,6 +421,7 @@ process! {
     ty: Pearson<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         mu    : f64     = 0.1 ; "Drift / mean",
@@ -415,6 +439,7 @@ process! {
     ty: Quadratic<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         alpha : f64     = 0.5 ; "alpha",
         beta  : f64     = 0.5 ; "beta",
@@ -431,6 +456,7 @@ process! {
     ty: RadialOU<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         sigma : f64     = 0.2 ; "Diffusion scale",
@@ -445,6 +471,7 @@ process! {
     ty: ThreeHalf<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         mu    : f64     = 0.1 ; "Drift / mean",
@@ -460,6 +487,7 @@ process! {
     ty: Verhulst<f64>,
     category: Diffusion,
     output: Path1D,
+    components: [],
     params: [
         r     : f64      = 0.03 ; "r",
         k     : f64      = 1.0 ; "k",

@@ -11,6 +11,7 @@ process! {
     ty: DuffieKan<f64>,
     category: Interest,
     output: MultiDim,
+    components: ["x1", "x2"],
     params: [
         alpha  : f64     = 0.5 ; "alpha",
         beta   : f64     = 0.5 ; "beta",
@@ -36,6 +37,7 @@ process! {
     ty: DuffieKanJumpExp<f64>,
     category: Interest,
     output: MultiDim,
+    components: ["x1", "x2"],
     params: [
         alpha      : f64     = 0.5 ; "alpha",
         beta       : f64     = 0.5 ; "beta",
@@ -63,6 +65,7 @@ process! {
     ty: FVasicek<f64>,
     category: Interest,
     output: Path1D,
+    components: [],
     params: [
         hurst : f64     = 0.4 ; "Hurst exponent",
         theta : f64     = 0.5 ; "Mean / reversion",
@@ -79,6 +82,7 @@ process! {
     ty: Vasicek<f64>,
     category: Interest,
     output: Path1D,
+    components: [],
     params: [
         theta : f64     = 0.5 ; "Mean / reversion",
         mu    : f64     = 0.1 ; "Drift / mean",

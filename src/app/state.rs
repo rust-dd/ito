@@ -189,7 +189,14 @@ impl App {
         match outcome {
             Ok(samples) => {
                 self.series = samples.into_iter().flatten().collect();
-                self.view = ChartView::All;
+                // Multi-state outputs (e.g. SV asset+variance) live on different
+                // scales, so start on a single isolated component rather than a
+                // misleading shared-axis overlay.
+                self.view = if self.series.len() > paths {
+                    ChartView::Single(0)
+                } else {
+                    ChartView::All
+                };
                 self.status = format!(
                     "Generated {paths} path(s) of {} · {} series",
                     desc.name,
@@ -422,6 +429,20 @@ mod tests {
 
         app.cycle_view(-1);
         assert!(matches!(app.view, ChartView::Single(2)));
+    }
+
+    #[test]
+    fn sv_model_labels_components_and_isolates_first() {
+        let mut app = App::new();
+        let idx = app.visible().iter().position(|d| d.name == "Sabr").unwrap();
+        app.list_state.select(Some(idx));
+        app.rebuild_fields();
+        let last = app.fields.len() - 1;
+        app.fields[last].buffer = "1".to_string();
+        app.generate();
+        let labels: Vec<&str> = app.series.iter().map(|s| s.label.as_str()).collect();
+        assert_eq!(labels, vec!["asset", "variance"]);
+        assert!(matches!(app.view, ChartView::Single(0)));
     }
 
     #[test]

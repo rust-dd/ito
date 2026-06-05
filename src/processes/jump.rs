@@ -17,6 +17,7 @@ process! {
     ty: BilateralGamma<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         alpha_p  : f64     = 0.5 ; "alpha_p",
         lambda_p : f64     = 0.5 ; "lambda_p",
@@ -33,6 +34,7 @@ process! {
     ty: Cgmy<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         c            : f64     = 1.0 ; "c",
         lambda_plus  : f64     = 0.5 ; "lambda_plus",
@@ -50,6 +52,7 @@ process! {
     ty: Cts<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         lambda_plus  : f64     = 0.5 ; "lambda_plus",
         lambda_minus : f64     = 0.5 ; "lambda_minus",
@@ -66,6 +69,7 @@ process! {
     ty: HawkesJD<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         mu        : f64     = 0.1 ; "Drift / mean",
         sigma     : f64     = 0.2 ; "Diffusion scale",
@@ -85,6 +89,7 @@ process! {
     ty: Ig<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         gamma : f64     = 0.5 ; "gamma",
         n     : usize   = 1000 ; "Steps",
@@ -98,6 +103,7 @@ process! {
     ty: KoBoL<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         d            : f64     = 0.5 ; "d",
         p            : f64     = 0.5 ; "p",
@@ -117,6 +123,7 @@ process! {
     ty: MjdLog<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         mu     : opt_f64 = Some(0.1) ; "Drift / mean",
         b      : opt_f64 = Some(0.1) ; "b",
@@ -137,6 +144,7 @@ process! {
     ty: Nig<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         theta : f64     = 0.5 ; "Mean / reversion",
         sigma : f64     = 0.2 ; "Diffusion scale",
@@ -152,6 +160,7 @@ process! {
     ty: Rdts<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         lambda_plus  : f64     = 0.5 ; "lambda_plus",
         lambda_minus : f64     = 0.5 ; "lambda_minus",
@@ -168,6 +177,7 @@ process! {
     ty: Vg<f64>,
     category: Jump,
     output: Path1D,
+    components: [],
     params: [
         mu    : f64     = 0.1 ; "Drift / mean",
         sigma : f64     = 0.2 ; "Diffusion scale",

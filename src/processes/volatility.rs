@@ -18,6 +18,7 @@ process! {
     ty: BatesSvj<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         mu      : opt_f64  = Some(0.1) ; "Drift / mean",
         b       : opt_f64  = Some(0.1) ; "b",
@@ -43,6 +44,7 @@ process! {
     ty: Bergomi<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         nu  : f64     = 0.2 ; "nu",
         v0  : opt_f64 = Some(0.04) ; "Initial variance",
@@ -59,6 +61,7 @@ process! {
     ty: Bns<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         s0         : opt_f64 = Some(100.0) ; "Initial spot",
         sigma2_0   : f64     = 0.5 ; "sigma2_0",
@@ -76,6 +79,7 @@ process! {
     ty: DoubleHeston<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance", "variance 2"],
     params: [
         s0      : opt_f64  = Some(100.0) ; "Initial spot",
         v1_0    : opt_f64  = Some(0.5) ; "v1_0",
@@ -100,6 +104,7 @@ process! {
     ty: FBatesSvj<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         hurst  : f64     = 0.4 ; "Hurst exponent",
         mu     : f64     = 0.1 ; "Drift / mean",
@@ -122,6 +127,7 @@ process! {
     ty: RoughHeston<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         hurst : f64     = 0.4 ; "Hurst exponent",
         v0    : opt_f64 = Some(0.04) ; "Initial variance",
@@ -140,6 +146,7 @@ process! {
     ty: HestonLog<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         mu      : opt_f64  = Some(0.1) ; "Drift / mean",
         b       : opt_f64  = Some(0.1) ; "b",
@@ -162,6 +169,7 @@ process! {
     ty: Hkde<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         mu      : f64      = 0.1 ; "Drift / mean",
         kappa   : f64      = 1.5 ; "Reversion speed",
@@ -185,6 +193,7 @@ process! {
     ty: RoughBergomi<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         hurst : f64     = 0.4 ; "Hurst exponent",
         nu    : f64     = 0.2 ; "nu",
@@ -202,6 +211,7 @@ process! {
     ty: Sabr<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         alpha : f64     = 0.5 ; "alpha",
         beta  : f64     = 0.5 ; "beta",
@@ -218,6 +228,7 @@ process! {
     ty: Svcgmy<f64>,
     category: Volatility,
     output: MultiDim,
+    components: ["asset", "variance"],
     params: [
         lambda_plus  : f64     = 0.5 ; "lambda_plus",
         lambda_minus : f64     = 0.5 ; "lambda_minus",

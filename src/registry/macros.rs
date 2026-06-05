@@ -35,12 +35,26 @@ macro_rules! ito_param_get {
 }
 
 #[macro_export]
+macro_rules! ito_adapter {
+    (Path1D, $process:expr, [$($comp:literal),* $(,)?]) => {
+        $crate::registry::adapters::Path1D($process)
+    };
+    (MultiDim, $process:expr, [$($comp:literal),* $(,)?]) => {
+        $crate::registry::adapters::MultiDim {
+            process: $process,
+            components: &[$($comp),*],
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! process {
     (
         name: $name:literal,
         ty: $ty:ty,
         category: $cat:ident,
         output: $out:ident,
+        components: [ $($comp:literal),* $(,)? ],
         params: [ $( $pname:ident : $pkind:ident = $pdef:expr ; $pdoc:literal ),* $(,)? ] $(,)?
     ) => {
         ::inventory::submit! {
@@ -61,11 +75,13 @@ macro_rules! process {
                     fn build(
                         values: &$crate::registry::ParamValues,
                     ) -> ::std::boxed::Box<dyn $crate::registry::ChartSource> {
-                        ::std::boxed::Box::new($crate::registry::adapters::$out(
+                        ::std::boxed::Box::new($crate::ito_adapter!(
+                            $out,
                             <$ty>::new(
                                 $( $crate::ito_param_get!($pkind, values, ::core::stringify!($pname)), )*
                                 ::stochastic_rs_stochastic::simd_rng::Unseeded,
                             ),
+                            [$($comp),*]
                         ))
                     }
                     build

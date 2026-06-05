@@ -10,6 +10,7 @@ process! {
     ty: HestonStochCorr<f64>,
     category: Correlation,
     output: MultiDim,
+    components: ["x1", "x2", "x3"],
     params: [
         r       : f64     = 0.03 ; "r",
         s0      : f64     = 0.5 ; "Initial spot",
@@ -32,6 +33,7 @@ process! {
     ty: TengSCP<f64>,
     category: Correlation,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         mu    : f64     = 0.1 ; "Drift / mean",
@@ -47,6 +49,7 @@ process! {
     ty: VanEmmerich<f64>,
     category: Correlation,
     output: Path1D,
+    components: [],
     params: [
         kappa : f64     = 1.5 ; "Reversion speed",
         mu    : f64     = 0.1 ; "Drift / mean",

@@ -33,15 +33,20 @@ where
 }
 
 /// Adapter for `N`-state processes (`Output = [Array1<f64>; N]`), e.g. the
-/// asset/variance pair of stochastic-volatility models.
-pub struct MultiDim<P>(pub P);
+/// asset/variance pair of stochastic-volatility models. `components` names the
+/// state variables so the chart labels them ("asset", "variance", …) and each
+/// can be viewed on its own scale.
+pub struct MultiDim<P> {
+    pub process: P,
+    pub components: &'static [&'static str],
+}
 
 impl<const N: usize, P> ChartSource for MultiDim<P>
 where
     P: ProcessExt<f64, Output = [Array1<f64>; N]>,
 {
     fn sample_par(&self, m: usize) -> Vec<Vec<NamedSeries>> {
-        self.0
+        self.process
             .sample_par(m)
             .iter()
             .enumerate()
@@ -49,7 +54,15 @@ where
                 components
                     .iter()
                     .enumerate()
-                    .map(|(k, comp)| series(comp, format!("#{i}.{k}")))
+                    .map(|(k, comp)| {
+                        let name = self.components.get(k).copied().unwrap_or("comp");
+                        let label = if m > 1 {
+                            format!("{name} #{i}")
+                        } else {
+                            name.to_string()
+                        };
+                        series(comp, label)
+                    })
                     .collect()
             })
             .collect()

@@ -190,6 +190,18 @@ def default_for(struct, name, kind):
 def doc_for(name):
     return DOCS.get(name.lower(), name)
 
+def components_for(cat, okind, n):
+    if okind != "MultiDim":
+        return "[]"
+    n = n or 2
+    if cat in ("volatility", "rough"):
+        names = ["asset", "variance", "variance 2", "variance 3"][:n]
+    else:
+        names = [f"x{k + 1}" for k in range(n)]
+    while len(names) < n:
+        names.append(f"comp {len(names) + 1}")
+    return "[" + ", ".join(f'"{x}"' for x in names) + "]"
+
 def emit():
     mods, grand = [], 0
     for cat, Cat in CATS.items():
@@ -212,6 +224,7 @@ def emit():
                 f"    ty: {struct}<f64>,\n"
                 f"    category: {Cat},\n"
                 f"    output: {info['okind']},\n"
+                f"    components: {components_for(cat, info['okind'], info['n'])},\n"
                 "    params: [\n" + "\n".join(plines) + "\n    ],\n"
                 "}"
             )
