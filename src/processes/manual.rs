@@ -13,7 +13,10 @@ use stochastic_rs_stochastic::correlation::transformed_ou::TransformedOU;
 use stochastic_rs_stochastic::correlation::transformed_ou::Transformation;
 use stochastic_rs_stochastic::diffusion::cfou::Cfou;
 use stochastic_rs_stochastic::diffusion::cir::Cir;
+use stochastic_rs_stochastic::diffusion::regime_switching::RegimeSwitchingDiffusion;
+use stochastic_rs_stochastic::interest::adg::Adg;
 use stochastic_rs_stochastic::interest::cir_2f::Cir2F;
+use stochastic_rs_stochastic::interest::hjm::Hjm;
 use stochastic_rs_stochastic::interest::ho_lee::HoLee;
 use stochastic_rs_stochastic::interest::hull_white::HullWhite;
 use stochastic_rs_stochastic::interest::hull_white_2f::HullWhite2F;
@@ -29,6 +32,8 @@ use stochastic_rs_stochastic::process::poisson::Poisson;
 use stochastic_rs_stochastic::simd_rng::Unseeded;
 use stochastic_rs_stochastic::volatility::HestonPow;
 use stochastic_rs_stochastic::volatility::heston::Heston;
+use stochastic_rs_stochastic::volatility::heston2d::Heston2D;
+use stochastic_rs_stochastic::volatility::multifactor_sabr::MultifactorSabr;
 
 use crate::registry::Category;
 use crate::registry::ChartSource;
@@ -38,6 +43,7 @@ use crate::registry::ParamSpec;
 use crate::registry::ParamValues;
 use crate::registry::ProcessDescriptor;
 use crate::registry::adapters::ComplexPath;
+use crate::registry::adapters::Curve;
 use crate::registry::adapters::MultiDim;
 use crate::registry::adapters::Path1D;
 use crate::registry::adapters::VecPath;
@@ -602,5 +608,205 @@ inventory::submit! {
             ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
         ],
         build: build_jump_fou_custom,
+    }
+}
+
+/// Flat 2-D surface used to pin the callable `Fn2D` arguments of the HJM/ADG
+/// term-structure models to a small constant.
+fn flat_surface(_: f64, _: f64) -> f64 {
+    0.01
+}
+
+fn build_adg(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Curve(Adg::<f64>::new(
+        flat_curve as fn(f64) -> f64,
+        flat_curve as fn(f64) -> f64,
+        Array1::from_vec(values.f64vec("sigma")),
+        flat_curve as fn(f64) -> f64,
+        flat_curve as fn(f64) -> f64,
+        flat_curve as fn(f64) -> f64,
+        values.usize("n"),
+        values.usize("xn"),
+        Array1::from_vec(values.f64vec("x0")),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Adg",
+        category: Category::Interest,
+        params: &[
+            ParamSpec { name: "sigma", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.01, 0.01]), doc: "Per-factor vols" },
+            ParamSpec { name: "x0", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.03, 0.03]), doc: "Initial rates" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "xn", kind: ParamKind::Usize, default: ParamDefault::Usize(2), doc: "Number of factors" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_adg,
+    }
+}
+
+fn build_hjm(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(MultiDim {
+        process: Hjm::<f64>::new(
+            flat_curve as fn(f64) -> f64,
+            flat_curve as fn(f64) -> f64,
+            flat_surface as fn(f64, f64) -> f64,
+            flat_surface as fn(f64, f64) -> f64,
+            flat_surface as fn(f64, f64) -> f64,
+            flat_surface as fn(f64, f64) -> f64,
+            flat_surface as fn(f64, f64) -> f64,
+            values.usize("n"),
+            values.opt_f64("r0"),
+            values.opt_f64("p0"),
+            values.opt_f64("f0"),
+            values.opt_f64("t"),
+            Unseeded,
+        ),
+        components: &["short rate", "bond price", "forward rate"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Hjm",
+        category: Category::Interest,
+        params: &[
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "r0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.03)), doc: "Initial short rate" },
+            ParamSpec { name: "p0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Initial bond price" },
+            ParamSpec { name: "f0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.03)), doc: "Initial forward rate" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_hjm,
+    }
+}
+
+fn build_heston2d(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(MultiDim {
+        process: Heston2D::<f64>::new(
+            [values.opt_f64("x0_1"), values.opt_f64("x0_2")],
+            [values.opt_f64("v0_1"), values.opt_f64("v0_2")],
+            [values.f64("mu_1"), values.f64("mu_2")],
+            [values.f64("theta_1"), values.f64("theta_2")],
+            [values.f64("kappa_1"), values.f64("kappa_2")],
+            [values.f64("sigma_1"), values.f64("sigma_2")],
+            [
+                values.f64("rho_1"),
+                values.f64("rho_2"),
+                values.f64("rho_3"),
+                values.f64("rho_4"),
+                values.f64("rho_5"),
+                values.f64("rho_6"),
+            ],
+            values.usize("n"),
+            values.opt_f64("t"),
+            values.opt_bool("use_sym"),
+            Unseeded,
+        ),
+        components: &["asset 1", "asset 2", "variance 1", "variance 2"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Heston2D",
+        category: Category::Volatility,
+        params: &[
+            ParamSpec { name: "x0_1", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(100.0)), doc: "Asset 1 spot" },
+            ParamSpec { name: "x0_2", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(100.0)), doc: "Asset 2 spot" },
+            ParamSpec { name: "v0_1", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.04)), doc: "Variance 1 start" },
+            ParamSpec { name: "v0_2", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.04)), doc: "Variance 2 start" },
+            ParamSpec { name: "mu_1", kind: ParamKind::F64, default: ParamDefault::F64(0.05), doc: "Asset 1 drift" },
+            ParamSpec { name: "mu_2", kind: ParamKind::F64, default: ParamDefault::F64(0.05), doc: "Asset 2 drift" },
+            ParamSpec { name: "theta_1", kind: ParamKind::F64, default: ParamDefault::F64(0.04), doc: "Variance 1 mean" },
+            ParamSpec { name: "theta_2", kind: ParamKind::F64, default: ParamDefault::F64(0.04), doc: "Variance 2 mean" },
+            ParamSpec { name: "kappa_1", kind: ParamKind::F64, default: ParamDefault::F64(1.5), doc: "Variance 1 reversion" },
+            ParamSpec { name: "kappa_2", kind: ParamKind::F64, default: ParamDefault::F64(1.5), doc: "Variance 2 reversion" },
+            ParamSpec { name: "sigma_1", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Vol of vol 1" },
+            ParamSpec { name: "sigma_2", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Vol of vol 2" },
+            ParamSpec { name: "rho_1", kind: ParamKind::F64, default: ParamDefault::F64(-0.5), doc: "Correlation entry 1" },
+            ParamSpec { name: "rho_2", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Correlation entry 2" },
+            ParamSpec { name: "rho_3", kind: ParamKind::F64, default: ParamDefault::F64(0.0), doc: "Correlation entry 3" },
+            ParamSpec { name: "rho_4", kind: ParamKind::F64, default: ParamDefault::F64(-0.5), doc: "Correlation entry 4" },
+            ParamSpec { name: "rho_5", kind: ParamKind::F64, default: ParamDefault::F64(0.0), doc: "Correlation entry 5" },
+            ParamSpec { name: "rho_6", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Correlation entry 6" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+            ParamSpec { name: "use_sym", kind: ParamKind::OptBool, default: ParamDefault::OptBool(Some(true)), doc: "Symmetrise" },
+        ],
+        build: build_heston2d,
+    }
+}
+
+fn build_regime_switching(values: &ParamValues) -> Box<dyn ChartSource> {
+    let vols = Array1::from_vec(values.f64vec("vols"));
+    let dim = vols.len().max(2);
+    Box::new(MultiDim {
+        process: RegimeSwitchingDiffusion::<f64>::new(
+            values.f64("mu"),
+            square_matrix(values, "q_matrix", dim),
+            vols,
+            values.usize("initial_state"),
+            values.usize("n"),
+            values.opt_f64("s0"),
+            values.opt_f64("t"),
+            Unseeded,
+        ),
+        components: &["price", "state"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "RegimeSwitchingDiffusion",
+        category: Category::Diffusion,
+        params: &[
+            ParamSpec { name: "mu", kind: ParamKind::F64, default: ParamDefault::F64(0.05), doc: "Drift" },
+            ParamSpec { name: "q_matrix", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[-0.5, 0.5, 0.5, -0.5]), doc: "Generator matrix, row-major" },
+            ParamSpec { name: "vols", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.1, 0.3]), doc: "Per-state vols" },
+            ParamSpec { name: "initial_state", kind: ParamKind::Usize, default: ParamDefault::Usize(0), doc: "Starting regime" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "s0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(100.0)), doc: "Initial spot" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_regime_switching,
+    }
+}
+
+fn build_multifactor_sabr(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(MultiDim {
+        process: MultifactorSabr::<f64>::new(
+            values.opt_f64("f0"),
+            values.opt_f64("v0"),
+            values.f64vec("knots"),
+            values.f64vec("beta"),
+            values.f64vec("rho"),
+            values.f64vec("nu"),
+            values.usize("n"),
+            values.opt_f64("t"),
+            Unseeded,
+        ),
+        components: &["forward", "variance"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "MultifactorSabr",
+        category: Category::Volatility,
+        params: &[
+            ParamSpec { name: "f0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.03)), doc: "Initial forward" },
+            ParamSpec { name: "v0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.2)), doc: "Initial vol" },
+            ParamSpec { name: "knots", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.5]), doc: "Time knots (buckets = knots+1)" },
+            ParamSpec { name: "beta", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.5, 0.5]), doc: "Per-factor beta" },
+            ParamSpec { name: "rho", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[-0.3, -0.3]), doc: "Per-factor correlation" },
+            ParamSpec { name: "nu", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.3, 0.3]), doc: "Per-factor vol of vol" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_multifactor_sabr,
     }
 }
