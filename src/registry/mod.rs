@@ -76,6 +76,9 @@ pub enum Category {
     Rough,
     Correlation,
     Autoregressive,
+    Noise,
+    Process,
+    Sheet,
 }
 
 impl Category {
@@ -88,6 +91,9 @@ impl Category {
             Category::Rough => "Rough",
             Category::Correlation => "Correlation",
             Category::Autoregressive => "Autoregressive",
+            Category::Noise => "Noise",
+            Category::Process => "Process",
+            Category::Sheet => "Sheet",
         }
     }
 }

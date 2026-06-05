@@ -53,6 +53,12 @@ macro_rules! ito_adapter {
             components: &[$($comp),*],
         }
     };
+    (Curve, $process:expr, [$($comp:literal),* $(,)?]) => {
+        $crate::registry::adapters::Curve($process)
+    };
+    (VecPath, $process:expr, [$($comp:literal),* $(,)?]) => {
+        $crate::registry::adapters::VecPath($process)
+    };
 }
 
 #[macro_export]

@@ -5,6 +5,7 @@
 //! processes, since not every model carries a time horizon).
 
 use ndarray::Array1;
+use ndarray::Array2;
 use num_complex::Complex;
 use stochastic_rs_stochastic::ProcessExt;
 
@@ -84,6 +85,54 @@ where
                     NamedSeries { label: "real".to_string(), points: real },
                     NamedSeries { label: "imag".to_string(), points: imag },
                 ]
+            })
+            .collect()
+    }
+}
+
+/// Adapter for surface output (`Output = Array2<f64>`); each row is drawn as one
+/// overlaid curve.
+pub struct Curve<P>(pub P);
+
+impl<P> ChartSource for Curve<P>
+where
+    P: ProcessExt<f64, Output = Array2<f64>>,
+{
+    fn sample_par(&self, m: usize) -> Vec<Vec<NamedSeries>> {
+        self.0
+            .sample_par(m)
+            .iter()
+            .map(|surface| {
+                surface
+                    .rows()
+                    .into_iter()
+                    .map(|row| {
+                        let points = row.iter().enumerate().map(|(i, &y)| (i as f64, y)).collect();
+                        NamedSeries { label: "curve".to_string(), points }
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+}
+
+/// Adapter for runtime-sized multi-component output (`Output = Vec<Array1<f64>>`),
+/// e.g. the per-component event paths of a multivariate Hawkes process.
+pub struct VecPath<P>(pub P);
+
+impl<P> ChartSource for VecPath<P>
+where
+    P: ProcessExt<f64, Output = Vec<Array1<f64>>>,
+{
+    fn sample_par(&self, m: usize) -> Vec<Vec<NamedSeries>> {
+        self.0
+            .sample_par(m)
+            .iter()
+            .map(|components| {
+                components
+                    .iter()
+                    .map(|comp| series(comp, "component".to_string()))
+                    .collect()
             })
             .collect()
     }

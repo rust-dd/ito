@@ -9,6 +9,9 @@ CATS = {
     "autoregressive": "Autoregressive",
     "rough": "Rough",
     "correlation": "Correlation",
+    "noise": "Noise",
+    "process": "Process",
+    "sheet": "Sheet",
 }
 
 def balanced(text, start):
@@ -76,6 +79,8 @@ def classify_param(ty):
 def classify_output(out):
     t = norm(out)
     if t == "Array1<T>": return ("Path1D", None)
+    if t == "Array2<T>": return ("Curve", None)
+    if t == "Vec<Array1<T>>": return ("VecPath", None)
     m = re.match(r"\[Array1<T>;(\d+)\]", t)
     if m: return ("MultiDim", int(m.group(1)))
     return (None, None)
@@ -166,6 +171,10 @@ OVERRIDES = {
     ("Jacobi", "alpha"): "0.3", ("Jacobi", "beta"): "0.7",
     ("FJacobi", "alpha"): "0.3", ("FJacobi", "beta"): "0.7",
     ("HawkesJD", "alpha"): "0.5", ("HawkesJD", "beta"): "1.5",
+    ("Hawkes", "beta"): "1.5",
+    ("Lfsm", "alpha"): "1.5", ("Lfsm", "hurst"): "0.8",
+    ("Fbs", "r"): "1.0",
+    ("WuZhangD", "alpha"): "&[0.3, 0.2]", ("WuZhangD", "beta"): "&[0.3, 0.2]",
 }
 DOCS = {
     "n": "Steps", "t": "Horizon", "hurst": "Hurst exponent", "mu": "Drift / mean",
@@ -184,6 +193,9 @@ def default_for(struct, name, kind):
         if nm == "n": return "1000"
         if nm == "j": return "50"
         if nm == "s": return "12"
+        if nm == "xn": return "2"
+        if nm == "m": return "64"
+        if nm == "u_steps": return "64"
         return "1"
     if kind == "opt_f64": return OPT_F64_DEFAULTS.get(nm, "Some(0.5)")
     if kind == "opt_usize": return "Some(1)"
@@ -197,6 +209,7 @@ def default_for(struct, name, kind):
 VEC_DEFAULTS = {
     "alpha": "&[0.1]", "beta": "&[0.85]", "gamma": "&[0.05]", "delta": "&[0.05]",
     "phi": "&[0.5]", "theta": "&[0.4]",
+    "tenor": "&[0.5, 1.0, 1.5]", "l0": "&[0.03, 0.03]", "sigma": "&[0.2, 0.2]",
 }
 
 def doc_for(name):
@@ -218,14 +231,21 @@ def emit():
     mods, grand = [], 0
     for cat, Cat in CATS.items():
         d = os.path.join(SRC, cat)
-        files = sorted(f for f in os.listdir(d) if f.endswith(".rs") and f != "mod.rs")
+        entries = []
+        for root, _dirs, fnames in os.walk(d):
+            for fn in fnames:
+                if fn.endswith(".rs") and fn != "mod.rs":
+                    rel = os.path.relpath(os.path.join(root, fn), SRC)
+                    entries.append((rel[:-3].split(os.sep), os.path.join(root, fn)))
+        entries.sort()
         blocks, uses = [], []
-        for f in files:
-            info = extract(os.path.join(d, f))
+        for parts, fp in entries:
+            info = extract(fp)
             if not info or info["okind"] is None or not info["ok"]:
                 continue
-            mod, struct, params = f[:-3], info["struct"], info["params"]
-            uses.append(f"use stochastic_rs_stochastic::{cat}::{mod}::{struct};")
+            struct, params = info["struct"], info["params"]
+            modpath = "::".join(parts)
+            uses.append(f"use stochastic_rs_stochastic::{modpath}::{struct};")
             namew = max((len(n) for n, _ in params), default=1)
             kindw = max((len(k) for _, k in params), default=1)
             plines = [f'        {pn:<{namew}} : {pk:<{kindw}} = {default_for(struct, pn, pk)} ; "{doc_for(pn)}",'
