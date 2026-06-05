@@ -3,6 +3,8 @@
 //! parameters are still exposed; the non-scalar argument is pinned to its
 //! conventional value.
 
+use ndarray::Array1;
+use ndarray::Array2;
 use rand::Rng;
 use rand_distr::Distribution;
 use rand_distr::Normal;
@@ -15,6 +17,7 @@ use stochastic_rs_stochastic::jump::kou::Kou;
 use stochastic_rs_stochastic::jump::levy_diffusion::LevyDiffusion;
 use stochastic_rs_stochastic::jump::merton::Merton;
 use stochastic_rs_stochastic::process::cpoisson::CompoundPoisson;
+use stochastic_rs_stochastic::process::multivariate_hawkes::MultivariateHawkes;
 use stochastic_rs_stochastic::process::poisson::Poisson;
 use stochastic_rs_stochastic::simd_rng::Unseeded;
 use stochastic_rs_stochastic::volatility::HestonPow;
@@ -30,6 +33,7 @@ use crate::registry::ProcessDescriptor;
 use crate::registry::adapters::ComplexPath;
 use crate::registry::adapters::MultiDim;
 use crate::registry::adapters::Path1D;
+use crate::registry::adapters::VecPath;
 
 fn build_heston(values: &ParamValues) -> Box<dyn ChartSource> {
     Box::new(MultiDim {
@@ -388,5 +392,36 @@ inventory::submit! {
             ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
         ],
         build: build_cfou,
+    }
+}
+
+fn square_matrix(values: &ParamValues, name: &str, dim: usize) -> Array2<f64> {
+    let flat = values.f64vec(name);
+    Array2::from_shape_vec((dim, dim), flat).unwrap_or_else(|_| Array2::zeros((dim, dim)))
+}
+
+fn build_multivariate_hawkes(values: &ParamValues) -> Box<dyn ChartSource> {
+    let mu = Array1::from_vec(values.f64vec("mu"));
+    let dim = mu.len().max(1);
+    Box::new(VecPath(MultivariateHawkes::<f64>::new(
+        mu,
+        square_matrix(values, "alpha", dim),
+        square_matrix(values, "beta", dim),
+        values.f64("t_max"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "MultivariateHawkes",
+        category: Category::Process,
+        params: &[
+            ParamSpec { name: "mu", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.5, 0.5]), doc: "Baseline intensities (one per dimension)" },
+            ParamSpec { name: "alpha", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[0.2, 0.1, 0.1, 0.2]), doc: "Excitation matrix, row-major" },
+            ParamSpec { name: "beta", kind: ParamKind::F64Vec, default: ParamDefault::F64Vec(&[1.0, 1.0, 1.0, 1.0]), doc: "Decay matrix, row-major" },
+            ParamSpec { name: "t_max", kind: ParamKind::F64, default: ParamDefault::F64(10.0), doc: "Time horizon" },
+        ],
+        build: build_multivariate_hawkes,
     }
 }
