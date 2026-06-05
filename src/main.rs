@@ -1,12 +1,29 @@
-use ndarray::Array1;
-use stochastic_rs_stochastic::ProcessExt;
-use stochastic_rs_stochastic::diffusion::gbm::Gbm;
-use stochastic_rs_stochastic::simd_rng::Unseeded;
+mod registry;
+mod processes;
+
+use registry::ParamValues;
+use registry::registry;
 
 fn main() {
-    let gbm = Gbm::<f64>::new(0.05, 0.2, 20, Some(100.0), Some(1.0), Unseeded);
-    let path: Array1<f64> = gbm.sample();
-    println!("len={} first={:.4} last={:.4}", path.len(), path[0], path[path.len() - 1]);
-    let many: Vec<Array1<f64>> = gbm.sample_par(3);
-    println!("paths={}", many.len());
+    let reg = registry();
+    println!("{} processes registered", reg.len());
+    for d in &reg {
+        println!(
+            "[{}] {} ({} params)",
+            d.category.label(),
+            d.name,
+            d.params.len()
+        );
+    }
+
+    if let Some(d) = reg.iter().find(|d| d.name == "Gbm") {
+        let values = ParamValues::from_defaults(d.params);
+        let src = (d.build)(&values);
+        let samples = src.sample_par(2);
+        println!(
+            "Gbm -> {} samples, first has {} points",
+            samples.len(),
+            samples[0][0].points.len()
+        );
+    }
 }
