@@ -22,10 +22,10 @@ fn main() -> io::Result<()> {
 fn run(terminal: &mut DefaultTerminal, app: &mut App) -> io::Result<()> {
     while !app.should_quit {
         terminal.draw(|frame| crate::app::ui::draw(frame, app))?;
-        if event::poll(Duration::from_millis(250))? {
-            if let Event::Key(key) = event::read()? {
-                crate::app::event::handle_key(app, key);
-            }
+        if event::poll(Duration::from_millis(250))?
+            && let Event::Key(key) = event::read()?
+        {
+            crate::app::event::handle_key(app, key);
         }
     }
     Ok(())
