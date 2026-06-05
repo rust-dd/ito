@@ -38,12 +38,18 @@ which extracts constructor signatures from the library source.
 
 ## Coverage
 
-All 60 scalar-parameter processes across diffusion, volatility, jump, interest,
-rough, and correlation are registered and sample cleanly with their default
-parameters. Processes whose constructors take vectors, matrices, jump
-distributions, or callable term-structures (e.g. the GARCH family, Merton/Kou
-compound-Poisson jumps, HJM/Hull-White) are deferred — they need richer input
-widgets than the scalar form provides.
+78 processes across diffusion, volatility, jump, interest, rough, correlation,
+and autoregressive are registered and sample cleanly with their default
+parameters. This is the full scalar/vector-parameter set (the `process!` macro)
+plus hand-written registrations (`src/processes/manual.rs`) for marquee models
+with non-scalar constructors: Heston, Merton, Kou (double-exponential jumps),
+Lévy, Bates, jump-FOU, the complex fractional OU, and transformed-OU.
+
+Still deferred — they need input widgets or visualisations the path chart does
+not have: term-structure models with `Array2`/sheet output (HJM, BGM, LMM,
+Wu-Zhang) or callable forward curves (Hull-White, Ho-Lee), the 2-asset Heston
+and multi-factor models with fixed-size array parameters, the regime-switching
+diffusion (transition-matrix input), and the nested 2-factor CIR.
 
 See [`docs/superpowers/specs/2026-06-05-ito-design.md`](docs/superpowers/specs/2026-06-05-ito-design.md)
 for the design.
