@@ -1012,6 +1012,7 @@ dependencies = [
  "crossterm",
  "inventory",
  "ndarray 0.17.2",
+ "rand_distr",
  "ratatui",
  "stochastic-rs-stochastic",
 ]
