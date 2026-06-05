@@ -132,6 +132,10 @@ impl App {
                     crate::registry::ParamDefault::OptF64(v) => opt_to_string(v, format_f64),
                     crate::registry::ParamDefault::OptUsize(v) => opt_to_string(v, |u| u.to_string()),
                     crate::registry::ParamDefault::OptBool(v) => opt_to_string(v, |b| b.to_string()),
+                    crate::registry::ParamDefault::F64Vec(v) => format_f64_slice(v),
+                    crate::registry::ParamDefault::OptF64Vec(v) => {
+                        opt_to_string(v, format_f64_slice)
+                    }
                 };
                 fields.push(Field {
                     role: FieldRole::Param {
@@ -297,7 +301,35 @@ fn parse_param(kind: ParamKind, raw: &str) -> Result<ParamValue, String> {
                     .ok_or_else(|| "expected true/false or 'none'".to_string())
             }
         }
+        ParamKind::F64Vec => parse_f64_vec(s)
+            .map(ParamValue::F64Vec)
+            .map_err(|_| "expected comma-separated numbers".to_string()),
+        ParamKind::OptF64Vec => {
+            if is_none(s) {
+                Ok(ParamValue::OptF64Vec(None))
+            } else {
+                parse_f64_vec(s)
+                    .map(|v| ParamValue::OptF64Vec(Some(v)))
+                    .map_err(|_| "expected comma-separated numbers or 'none'".to_string())
+            }
+        }
     }
+}
+
+fn parse_f64_vec(s: &str) -> Result<Vec<f64>, ()> {
+    s.split(',')
+        .map(str::trim)
+        .filter(|x| !x.is_empty())
+        .map(|x| x.parse::<f64>().map_err(|_| ()))
+        .collect()
+}
+
+fn format_f64_slice(values: &[f64]) -> String {
+    values
+        .iter()
+        .map(|v| v.to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn is_none(s: &str) -> bool {

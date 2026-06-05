@@ -14,6 +14,8 @@ macro_rules! ito_param_kind {
     (opt_f64) => { $crate::registry::ParamKind::OptF64 };
     (opt_usize) => { $crate::registry::ParamKind::OptUsize };
     (opt_bool) => { $crate::registry::ParamKind::OptBool };
+    (f64vec) => { $crate::registry::ParamKind::F64Vec };
+    (opt_f64vec) => { $crate::registry::ParamKind::OptF64Vec };
 }
 
 #[macro_export]
@@ -23,6 +25,8 @@ macro_rules! ito_param_default {
     (opt_f64, $d:expr) => { $crate::registry::ParamDefault::OptF64($d) };
     (opt_usize, $d:expr) => { $crate::registry::ParamDefault::OptUsize($d) };
     (opt_bool, $d:expr) => { $crate::registry::ParamDefault::OptBool($d) };
+    (f64vec, $d:expr) => { $crate::registry::ParamDefault::F64Vec($d) };
+    (opt_f64vec, $d:expr) => { $crate::registry::ParamDefault::OptF64Vec($d) };
 }
 
 #[macro_export]
@@ -32,6 +36,10 @@ macro_rules! ito_param_get {
     (opt_f64, $v:expr, $name:expr) => { $v.opt_f64($name) };
     (opt_usize, $v:expr, $name:expr) => { $v.opt_usize($name) };
     (opt_bool, $v:expr, $name:expr) => { $v.opt_bool($name) };
+    (f64vec, $v:expr, $name:expr) => { ::ndarray::Array1::from_vec($v.f64vec($name)) };
+    (opt_f64vec, $v:expr, $name:expr) => {
+        $v.opt_f64vec($name).map(::ndarray::Array1::from_vec)
+    };
 }
 
 #[macro_export]

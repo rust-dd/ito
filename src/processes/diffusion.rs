@@ -13,6 +13,7 @@ use stochastic_rs_stochastic::diffusion::fjacobi::FJacobi;
 use stochastic_rs_stochastic::diffusion::fou::Fou;
 use stochastic_rs_stochastic::diffusion::fouque::FouqueOU2D;
 use stochastic_rs_stochastic::diffusion::gbm::Gbm;
+use stochastic_rs_stochastic::diffusion::gbm_ih::GbmIh;
 use stochastic_rs_stochastic::diffusion::gbm_log::GbmLog;
 use stochastic_rs_stochastic::diffusion::gompertz::Gompertz;
 use stochastic_rs_stochastic::diffusion::hyperbolic2::Hyperbolic2;
@@ -232,6 +233,22 @@ process! {
         n     : usize   = 1000 ; "Steps",
         x0    : opt_f64 = Some(100.0) ; "Initial value",
         t     : opt_f64 = Some(1.0) ; "Horizon",
+    ],
+}
+
+process! {
+    name: "GbmIh",
+    ty: GbmIh<f64>,
+    category: Diffusion,
+    output: Path1D,
+    components: [],
+    params: [
+        mu     : f64        = 0.1 ; "Drift / mean",
+        sigma  : f64        = 0.2 ; "Diffusion scale",
+        n      : usize      = 1000 ; "Steps",
+        x0     : opt_f64    = Some(0.5) ; "Initial value",
+        t      : opt_f64    = Some(1.0) ; "Horizon",
+        sigmas : opt_f64vec = None ; "sigmas",
     ],
 }
 

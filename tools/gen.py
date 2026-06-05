@@ -69,6 +69,8 @@ def classify_param(ty):
     if t == "Option<usize>": return "opt_usize"
     if t == "Option<bool>": return "opt_bool"
     if t == "bool": return "bool"
+    if t == "Array1<T>": return "f64vec"
+    if t == "Option<Array1<T>>": return "opt_f64vec"
     return None
 
 def classify_output(out):
@@ -181,11 +183,21 @@ def default_for(struct, name, kind):
     if kind == "usize":
         if nm == "n": return "1000"
         if nm == "j": return "50"
+        if nm == "s": return "12"
         return "1"
     if kind == "opt_f64": return OPT_F64_DEFAULTS.get(nm, "Some(0.5)")
     if kind == "opt_usize": return "Some(1)"
     if kind == "opt_bool": return "Some(true)"
+    if kind == "f64vec":
+        return VEC_DEFAULTS.get(nm, "&[0.5, 0.3]")
+    if kind == "opt_f64vec":
+        return "None"
     return "0.5"
+
+VEC_DEFAULTS = {
+    "alpha": "&[0.1]", "beta": "&[0.85]", "gamma": "&[0.05]", "delta": "&[0.05]",
+    "phi": "&[0.5]", "theta": "&[0.4]",
+}
 
 def doc_for(name):
     return DOCS.get(name.lower(), name)

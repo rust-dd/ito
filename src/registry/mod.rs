@@ -27,6 +27,8 @@ pub enum ParamKind {
     OptF64,
     OptUsize,
     OptBool,
+    F64Vec,
+    OptF64Vec,
 }
 
 impl ParamKind {
@@ -38,6 +40,8 @@ impl ParamKind {
             ParamKind::OptF64 => "f64?",
             ParamKind::OptUsize => "uint?",
             ParamKind::OptBool => "bool?",
+            ParamKind::F64Vec => "f64,…",
+            ParamKind::OptF64Vec => "f64,…?",
         }
     }
 }
@@ -50,6 +54,8 @@ pub enum ParamDefault {
     OptF64(Option<f64>),
     OptUsize(Option<usize>),
     OptBool(Option<bool>),
+    F64Vec(&'static [f64]),
+    OptF64Vec(Option<&'static [f64]>),
 }
 
 /// Static description of a single constructor argument.
@@ -69,6 +75,7 @@ pub enum Category {
     Interest,
     Rough,
     Correlation,
+    Autoregressive,
 }
 
 impl Category {
@@ -80,18 +87,21 @@ impl Category {
             Category::Interest => "Interest",
             Category::Rough => "Rough",
             Category::Correlation => "Correlation",
+            Category::Autoregressive => "Autoregressive",
         }
     }
 }
 
 /// A single runtime parameter value entered by the user.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub enum ParamValue {
     F64(f64),
     Usize(usize),
     OptF64(Option<f64>),
     OptUsize(Option<usize>),
     OptBool(Option<bool>),
+    F64Vec(Vec<f64>),
+    OptF64Vec(Option<Vec<f64>>),
 }
 
 /// Runtime parameter values keyed by parameter name, consumed by `build`.
@@ -136,6 +146,20 @@ impl ParamValues {
     pub fn opt_bool(&self, name: &str) -> Option<bool> {
         match self.map.get(name) {
             Some(ParamValue::OptBool(v)) => *v,
+            _ => None,
+        }
+    }
+
+    pub fn f64vec(&self, name: &str) -> Vec<f64> {
+        match self.map.get(name) {
+            Some(ParamValue::F64Vec(v)) => v.clone(),
+            _ => Vec::new(),
+        }
+    }
+
+    pub fn opt_f64vec(&self, name: &str) -> Option<Vec<f64>> {
+        match self.map.get(name) {
+            Some(ParamValue::OptF64Vec(v)) => v.clone(),
             _ => None,
         }
     }
