@@ -21,14 +21,23 @@ use stochastic_rs_stochastic::interest::ho_lee::HoLee;
 use stochastic_rs_stochastic::interest::hull_white::HullWhite;
 use stochastic_rs_stochastic::interest::hull_white_2f::HullWhite2F;
 use stochastic_rs_stochastic::jump::bates::Bates1996;
+use stochastic_rs_stochastic::jump::bilateral_gamma::BilateralGammaMotion;
 use stochastic_rs_stochastic::jump::jump_fou::JumpFou;
 use stochastic_rs_stochastic::jump::jump_fou_custom::JumpFOUCustom;
 use stochastic_rs_stochastic::jump::kou::Kou;
 use stochastic_rs_stochastic::jump::levy_diffusion::LevyDiffusion;
 use stochastic_rs_stochastic::jump::merton::Merton;
+use stochastic_rs_stochastic::noise::fgn::Fgn;
+use stochastic_rs_stochastic::process::ccustom::CompoundCustom;
 use stochastic_rs_stochastic::process::cpoisson::CompoundPoisson;
+use stochastic_rs_stochastic::process::customjt::CustomJt;
 use stochastic_rs_stochastic::process::multivariate_hawkes::MultivariateHawkes;
 use stochastic_rs_stochastic::process::poisson::Poisson;
+use stochastic_rs_stochastic::process::subordinator::ctrw::Ctrw;
+use stochastic_rs_stochastic::process::subordinator::ctrw::CtrwJumpLaw;
+use stochastic_rs_stochastic::process::subordinator::ctrw::CtrwWaitingLaw;
+use stochastic_rs_stochastic::process::volterra::Volterra;
+use stochastic_rs_stochastic::process::volterra::VolterraKernel;
 use stochastic_rs_stochastic::simd_rng::Unseeded;
 use stochastic_rs_stochastic::volatility::HestonPow;
 use stochastic_rs_stochastic::volatility::heston::Heston;
@@ -808,5 +817,163 @@ inventory::submit! {
             ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
         ],
         build: build_multifactor_sabr,
+    }
+}
+
+fn build_fgn(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(Fgn::<f64>::new(
+        values.f64("hurst"),
+        values.usize("n"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Fgn",
+        category: Category::Noise,
+        params: &[
+            ParamSpec { name: "hurst", kind: ParamKind::F64, default: ParamDefault::F64(0.7), doc: "Hurst exponent" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_fgn,
+    }
+}
+
+fn build_bilateral_gamma_motion(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(BilateralGammaMotion::<f64>::new(
+        values.f64("sigma"),
+        values.f64("alpha_p"),
+        values.f64("lambda_p"),
+        values.f64("alpha_m"),
+        values.f64("lambda_m"),
+        values.usize("n"),
+        values.opt_f64("x0"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "BilateralGammaMotion",
+        category: Category::Jump,
+        params: &[
+            ParamSpec { name: "sigma", kind: ParamKind::F64, default: ParamDefault::F64(0.2), doc: "Diffusion scale" },
+            ParamSpec { name: "alpha_p", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Up shape" },
+            ParamSpec { name: "lambda_p", kind: ParamKind::F64, default: ParamDefault::F64(10.0), doc: "Up rate" },
+            ParamSpec { name: "alpha_m", kind: ParamKind::F64, default: ParamDefault::F64(1.0), doc: "Down shape" },
+            ParamSpec { name: "lambda_m", kind: ParamKind::F64, default: ParamDefault::F64(10.0), doc: "Down rate" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.0)), doc: "Initial value" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_bilateral_gamma_motion,
+    }
+}
+
+fn build_volterra(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(Volterra::<f64>::new(
+        VolterraKernel::FractionalBM { h: values.f64("hurst") },
+        values.usize("n"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Volterra",
+        category: Category::Process,
+        params: &[
+            ParamSpec { name: "hurst", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Kernel Hurst" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_volterra,
+    }
+}
+
+fn build_custom_jt(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(CustomJt::new(
+        Some(values.usize("n")),
+        values.opt_f64("t"),
+        Exp::new(values.f64("rate").max(0.01)).unwrap(),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "CustomJt",
+        category: Category::Process,
+        params: &[
+            ParamSpec { name: "rate", kind: ParamKind::F64, default: ParamDefault::F64(20.0), doc: "Inter-arrival rate" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_custom_jt,
+    }
+}
+
+fn build_ctrw(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(Path1D(Ctrw::<f64>::new(
+        CtrwWaitingLaw::Exponential { rate: values.f64("rate") },
+        CtrwJumpLaw::Normal { mean: values.f64("jump_mean"), std: values.f64("jump_std") },
+        values.usize("n"),
+        values.opt_f64("x0"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "Ctrw",
+        category: Category::Process,
+        params: &[
+            ParamSpec { name: "rate", kind: ParamKind::F64, default: ParamDefault::F64(20.0), doc: "Waiting-time rate" },
+            ParamSpec { name: "jump_mean", kind: ParamKind::F64, default: ParamDefault::F64(0.0), doc: "Mean jump" },
+            ParamSpec { name: "jump_std", kind: ParamKind::F64, default: ParamDefault::F64(0.1), doc: "Jump std" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "x0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(0.0)), doc: "Initial value" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_ctrw,
+    }
+}
+
+fn build_compound_custom(values: &ParamValues) -> Box<dyn ChartSource> {
+    let n = values.usize("n");
+    let t = values.opt_f64("t");
+    let times = Exp::new(values.f64("rate").max(0.01)).unwrap();
+    let customjt = CustomJt::new(Some(n), t, Exp::new(values.f64("rate").max(0.01)).unwrap(), Unseeded);
+    Box::new(MultiDim {
+        process: CompoundCustom::new(
+            Some(n),
+            t,
+            Normal::new(values.f64("jump_mean"), values.f64("jump_std").max(1e-9)).unwrap(),
+            times,
+            customjt,
+            Unseeded,
+        ),
+        components: &["events", "sum", "compensated"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "CompoundCustom",
+        category: Category::Process,
+        params: &[
+            ParamSpec { name: "rate", kind: ParamKind::F64, default: ParamDefault::F64(20.0), doc: "Inter-arrival rate" },
+            ParamSpec { name: "jump_mean", kind: ParamKind::F64, default: ParamDefault::F64(0.0), doc: "Mean jump size" },
+            ParamSpec { name: "jump_std", kind: ParamKind::F64, default: ParamDefault::F64(0.1), doc: "Jump size std" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_compound_custom,
     }
 }
