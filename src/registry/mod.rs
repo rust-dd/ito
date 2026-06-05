@@ -25,7 +25,6 @@ pub enum ParamKind {
     F64,
     Usize,
     OptF64,
-    Bool,
     OptBool,
 }
 
@@ -36,7 +35,6 @@ impl ParamKind {
             ParamKind::F64 => "f64",
             ParamKind::Usize => "uint",
             ParamKind::OptF64 => "f64?",
-            ParamKind::Bool => "bool",
             ParamKind::OptBool => "bool?",
         }
     }
@@ -48,7 +46,6 @@ pub enum ParamDefault {
     F64(f64),
     Usize(usize),
     OptF64(Option<f64>),
-    Bool(bool),
     OptBool(Option<bool>),
 }
 
@@ -96,7 +93,6 @@ pub enum ParamValue {
     F64(f64),
     Usize(usize),
     OptF64(Option<f64>),
-    Bool(bool),
     OptBool(Option<bool>),
 }
 
@@ -107,22 +103,6 @@ pub struct ParamValues {
 }
 
 impl ParamValues {
-    /// Build a value set pre-filled from each spec's default.
-    pub fn from_defaults(specs: &[ParamSpec]) -> Self {
-        let mut map = HashMap::new();
-        for spec in specs {
-            let value = match spec.default {
-                ParamDefault::F64(v) => ParamValue::F64(v),
-                ParamDefault::Usize(v) => ParamValue::Usize(v),
-                ParamDefault::OptF64(v) => ParamValue::OptF64(v),
-                ParamDefault::Bool(v) => ParamValue::Bool(v),
-                ParamDefault::OptBool(v) => ParamValue::OptBool(v),
-            };
-            map.insert(spec.name.to_string(), value);
-        }
-        Self { map }
-    }
-
     pub fn set(&mut self, name: &str, value: ParamValue) {
         self.map.insert(name.to_string(), value);
     }
@@ -145,13 +125,6 @@ impl ParamValues {
         match self.map.get(name) {
             Some(ParamValue::OptF64(v)) => *v,
             _ => None,
-        }
-    }
-
-    pub fn bool(&self, name: &str) -> bool {
-        match self.map.get(name) {
-            Some(ParamValue::Bool(v)) => *v,
-            _ => false,
         }
     }
 

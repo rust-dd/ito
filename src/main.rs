@@ -1,29 +1,32 @@
-mod registry;
+mod app;
 mod processes;
+mod registry;
 
-use registry::ParamValues;
-use registry::registry;
+use std::io;
+use std::time::Duration;
 
-fn main() {
-    let reg = registry();
-    println!("{} processes registered", reg.len());
-    for d in &reg {
-        println!(
-            "[{}] {} ({} params)",
-            d.category.label(),
-            d.name,
-            d.params.len()
-        );
+use crossterm::event;
+use crossterm::event::Event;
+use ratatui::DefaultTerminal;
+
+use crate::app::state::App;
+
+fn main() -> io::Result<()> {
+    let mut terminal = ratatui::init();
+    let mut app = App::new();
+    let result = run(&mut terminal, &mut app);
+    ratatui::restore();
+    result
+}
+
+fn run(terminal: &mut DefaultTerminal, app: &mut App) -> io::Result<()> {
+    while !app.should_quit {
+        terminal.draw(|frame| crate::app::ui::draw(frame, app))?;
+        if event::poll(Duration::from_millis(250))? {
+            if let Event::Key(key) = event::read()? {
+                crate::app::event::handle_key(app, key);
+            }
+        }
     }
-
-    if let Some(d) = reg.iter().find(|d| d.name == "Gbm") {
-        let values = ParamValues::from_defaults(d.params);
-        let src = (d.build)(&values);
-        let samples = src.sample_par(2);
-        println!(
-            "Gbm -> {} samples, first has {} points",
-            samples.len(),
-            samples[0][0].points.len()
-        );
-    }
+    Ok(())
 }
