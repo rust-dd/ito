@@ -20,6 +20,7 @@ use ratatui::widgets::ListItem;
 use ratatui::widgets::Paragraph;
 
 use crate::app::state::App;
+use crate::app::state::ChartView;
 use crate::app::state::Focus;
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
@@ -127,29 +128,47 @@ fn draw_form(frame: &mut Frame, app: &App, area: Rect) {
 fn draw_chart(frame: &mut Frame, app: &App, area: Rect) {
     let ([x_min, x_max], [y_min, y_max]) = app.bounds();
     let total = app.series.len();
-    let show_legend = (1..=6).contains(&total);
-    let datasets: Vec<Dataset> = app
-        .series
+    let shown = app.shown_indices();
+    let single = matches!(app.view, ChartView::Single(_));
+
+    // Thin the dense path (n up to 1000) down to roughly the chart's Braille
+    // resolution so segments don't pile into vertical smears.
+    let target = (area.width as usize).saturating_mul(2).max(64);
+    let prepared: Vec<(usize, Vec<(f64, f64)>)> = shown
         .iter()
-        .enumerate()
-        .map(|(i, s)| {
+        .map(|&k| (k, downsample(&app.series[k].points, target)))
+        .collect();
+
+    let datasets: Vec<Dataset> = prepared
+        .iter()
+        .map(|(k, points)| {
+            let color = if single {
+                Color::Rgb(125, 211, 255)
+            } else {
+                palette(*k, total)
+            };
             let dataset = Dataset::default()
                 .marker(symbols::Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(Style::default().fg(palette(i, total)))
-                .data(&s.points);
-            if show_legend {
-                dataset.name(s.label.clone())
+                .style(Style::default().fg(color))
+                .data(points);
+            if single || total <= 6 {
+                dataset.name(app.series[*k].label.clone())
             } else {
                 dataset
             }
         })
         .collect();
 
-    let title = if app.series.is_empty() {
-        " Chart \u{00b7} press \u{23ce}/g to generate ".to_string()
-    } else {
-        format!(" Chart \u{00b7} {} series ", app.series.len())
+    let title = match app.view {
+        _ if total == 0 => " Chart \u{00b7} press \u{23ce}/g to generate ".to_string(),
+        ChartView::All => format!(" Chart \u{00b7} {total} paths \u{00b7} \u{2190}\u{2192} isolate "),
+        ChartView::Single(i) => format!(
+            " Chart \u{00b7} path {}/{} ({}) \u{00b7} \u{2190}\u{2192} switch ",
+            i + 1,
+            total,
+            app.series.get(i).map(|s| s.label.as_str()).unwrap_or("")
+        ),
     };
 
     let mid = (y_min + y_max) / 2.0;
@@ -179,8 +198,8 @@ fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
         "filter: type to match \u{00b7} \u{23ce} apply \u{00b7} Esc clear"
     } else {
         match app.focus {
-            Focus::List => "\u{2191}\u{2193} select \u{00b7} \u{23ce}/g generate \u{00b7} / filter \u{00b7} Tab \u{2192} form \u{00b7} q quit",
-            Focus::Form => "\u{2191}\u{2193} field \u{00b7} type to edit \u{00b7} \u{23ce}/g generate \u{00b7} Tab/Esc \u{2192} list",
+            Focus::List => "\u{2191}\u{2193} select \u{00b7} \u{23ce}/g generate \u{00b7} \u{2190}\u{2192} paths \u{00b7} / filter \u{00b7} Tab \u{2192} form \u{00b7} q quit",
+            Focus::Form => "\u{2191}\u{2193} field \u{00b7} type to edit \u{00b7} \u{23ce}/g generate \u{00b7} \u{2190}\u{2192} paths \u{00b7} Tab/Esc \u{2192} list",
         }
     };
     let line = Line::from(vec![
@@ -211,4 +230,23 @@ fn pane_style(active: bool) -> Style {
     } else {
         Style::default().fg(Color::DarkGray)
     }
+}
+
+/// Evenly thin `points` to about `target` samples, preserving the last point.
+fn downsample(points: &[(f64, f64)], target: usize) -> Vec<(f64, f64)> {
+    if points.len() <= target {
+        return points.to_vec();
+    }
+    let step = points.len() as f64 / target as f64;
+    let mut out = Vec::with_capacity(target + 2);
+    let mut pos = 0.0;
+    while (pos as usize) < points.len() {
+        out.push(points[pos as usize]);
+        pos += step;
+    }
+    let last = points[points.len() - 1];
+    if out.last() != Some(&last) {
+        out.push(last);
+    }
+    out
 }

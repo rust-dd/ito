@@ -20,6 +20,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent) {
         handle_filter(app, key);
         return;
     }
+    match key.code {
+        KeyCode::Left => return app.cycle_view(-1),
+        KeyCode::Right => return app.cycle_view(1),
+        _ => {}
+    }
     match app.focus {
         Focus::List => handle_list(app, key),
         Focus::Form => handle_form(app, key),

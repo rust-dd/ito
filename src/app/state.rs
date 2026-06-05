@@ -17,6 +17,13 @@ pub enum Focus {
     Form,
 }
 
+/// Which of the generated series the chart shows.
+#[derive(Clone, Copy)]
+pub enum ChartView {
+    All,
+    Single(usize),
+}
+
 /// A form row: either a constructor parameter or the path-count control.
 pub enum FieldRole {
     Param {
@@ -65,6 +72,7 @@ pub struct App {
     pub filter: String,
     pub filtering: bool,
     pub series: Vec<NamedSeries>,
+    pub view: ChartView,
     pub status: String,
     pub should_quit: bool,
 }
@@ -86,6 +94,7 @@ impl App {
             filter: String::new(),
             filtering: false,
             series: Vec::new(),
+            view: ChartView::All,
             status: "Select a process · ⏎/g generate · Tab switch pane · q quit".to_string(),
             should_quit: false,
         };
@@ -180,6 +189,7 @@ impl App {
         match outcome {
             Ok(samples) => {
                 self.series = samples.into_iter().flatten().collect();
+                self.view = ChartView::All;
                 self.status = format!(
                     "Generated {paths} path(s) of {} · {} series",
                     desc.name,
@@ -194,16 +204,45 @@ impl App {
         }
     }
 
-    /// Data bounds across all generated series, padded for display.
+    /// Indices into `series` that the chart should draw, per the current view.
+    pub fn shown_indices(&self) -> Vec<usize> {
+        match self.view {
+            ChartView::All => (0..self.series.len()).collect(),
+            ChartView::Single(i) if i < self.series.len() => vec![i],
+            ChartView::Single(_) => (0..self.series.len()).collect(),
+        }
+    }
+
+    /// Step the chart through: all paths → path 0 → … → path N-1 → all.
+    pub fn cycle_view(&mut self, delta: isize) {
+        let n = self.series.len();
+        if n == 0 {
+            return;
+        }
+        let total = n as isize + 1;
+        let current = match self.view {
+            ChartView::All => 0,
+            ChartView::Single(i) => i as isize + 1,
+        };
+        let next = (current + delta).rem_euclid(total);
+        self.view = if next == 0 {
+            ChartView::All
+        } else {
+            ChartView::Single((next - 1) as usize)
+        };
+    }
+
+    /// Data bounds across the currently-shown series, padded for display.
     pub fn bounds(&self) -> ([f64; 2], [f64; 2]) {
-        if self.series.is_empty() {
+        let shown = self.shown_indices();
+        if shown.is_empty() {
             return ([0.0, 1.0], [0.0, 1.0]);
         }
         let mut x_max = 0.0f64;
         let mut y_min = f64::INFINITY;
         let mut y_max = f64::NEG_INFINITY;
-        for s in &self.series {
-            for &(x, y) in &s.points {
+        for &k in &shown {
+            for &(x, y) in &self.series[k].points {
                 x_max = x_max.max(x);
                 if y.is_finite() {
                     y_min = y_min.min(y);
@@ -359,6 +398,30 @@ mod tests {
             ok * 100 / total >= 70,
             "only {ok}/{total} processes generated with default parameters: {failed:?}"
         );
+    }
+
+    #[test]
+    fn cycle_view_steps_through_all_then_each_path() {
+        let mut app = App::new();
+        let last = app.fields.len() - 1;
+        app.fields[last].buffer = "3".to_string();
+        app.generate();
+        assert!(matches!(app.view, ChartView::All));
+        assert_eq!(app.shown_indices().len(), 3);
+
+        app.cycle_view(1);
+        assert!(matches!(app.view, ChartView::Single(0)));
+        assert_eq!(app.shown_indices(), vec![0]);
+
+        app.cycle_view(1);
+        app.cycle_view(1);
+        assert!(matches!(app.view, ChartView::Single(2)));
+
+        app.cycle_view(1);
+        assert!(matches!(app.view, ChartView::All));
+
+        app.cycle_view(-1);
+        assert!(matches!(app.view, ChartView::Single(2)));
     }
 
     #[test]
