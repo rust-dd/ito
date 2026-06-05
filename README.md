@@ -15,7 +15,7 @@ cargo run
 | `↑` / `↓` (or `j` / `k` in the list) | move selection / field |
 | `Tab` | switch between the process list and the parameter form |
 | `Enter` / `g` | generate paths |
-| `←` / `→` | cycle the chart through all paths → each isolated path → all |
+| `1`–`9` (in the list) | switch the chart between path types — each state variable (e.g. asset / variance) on its own scale |
 | `/` | filter the process list (Enter to apply, Esc to clear) |
 | type / `Backspace` | edit the focused parameter (in the form) |
 | `q` / `Ctrl-C` | quit |

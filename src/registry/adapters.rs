@@ -26,8 +26,7 @@ where
         self.0
             .sample_par(m)
             .iter()
-            .enumerate()
-            .map(|(i, path)| vec![series(path, format!("#{i}"))])
+            .map(|path| vec![series(path, "path".to_string())])
             .collect()
     }
 }
@@ -49,19 +48,13 @@ where
         self.process
             .sample_par(m)
             .iter()
-            .enumerate()
-            .map(|(i, components)| {
+            .map(|components| {
                 components
                     .iter()
                     .enumerate()
                     .map(|(k, comp)| {
                         let name = self.components.get(k).copied().unwrap_or("comp");
-                        let label = if m > 1 {
-                            format!("{name} #{i}")
-                        } else {
-                            name.to_string()
-                        };
-                        series(comp, label)
+                        series(comp, name.to_string())
                     })
                     .collect()
             })

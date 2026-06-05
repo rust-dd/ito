@@ -3,7 +3,6 @@
 
 use ratatui::widgets::ListState;
 
-use crate::registry::NamedSeries;
 use crate::registry::ParamKind;
 use crate::registry::ParamValue;
 use crate::registry::ParamValues;
@@ -17,11 +16,11 @@ pub enum Focus {
     Form,
 }
 
-/// Which of the generated series the chart shows.
-#[derive(Clone, Copy)]
-pub enum ChartView {
-    All,
-    Single(usize),
+/// Every sampled trajectory of one state variable (e.g. all "asset" paths),
+/// drawn together on a single chart and switched as a unit.
+pub struct PathGroup {
+    pub name: String,
+    pub paths: Vec<Vec<(f64, f64)>>,
 }
 
 /// A form row: either a constructor parameter or the path-count control.
@@ -71,8 +70,8 @@ pub struct App {
     pub focus: Focus,
     pub filter: String,
     pub filtering: bool,
-    pub series: Vec<NamedSeries>,
-    pub view: ChartView,
+    pub groups: Vec<PathGroup>,
+    pub group_idx: usize,
     pub status: String,
     pub should_quit: bool,
 }
@@ -93,8 +92,8 @@ impl App {
             focus: Focus::List,
             filter: String::new(),
             filtering: false,
-            series: Vec::new(),
-            view: ChartView::All,
+            groups: Vec::new(),
+            group_idx: 0,
             status: "Select a process · ⏎/g generate · Tab switch pane · q quit".to_string(),
             should_quit: false,
         };
@@ -188,68 +187,62 @@ impl App {
         std::panic::set_hook(previous_hook);
         match outcome {
             Ok(samples) => {
-                self.series = samples.into_iter().flatten().collect();
-                // Multi-state outputs (e.g. SV asset+variance) live on different
-                // scales, so start on a single isolated component rather than a
-                // misleading shared-axis overlay.
-                self.view = if self.series.len() > paths {
-                    ChartView::Single(0)
-                } else {
-                    ChartView::All
-                };
+                // Group every sample's k-th component together, so each state
+                // variable (asset, variance, …) gets its own chart on its own
+                // scale instead of a misleading shared-axis overlay.
+                let n_types = samples.iter().map(|s| s.len()).max().unwrap_or(0);
+                let mut names = vec![String::new(); n_types];
+                let mut paths_by_type: Vec<Vec<Vec<(f64, f64)>>> = vec![Vec::new(); n_types];
+                for sample in samples {
+                    for (k, named) in sample.into_iter().enumerate() {
+                        if names[k].is_empty() {
+                            names[k] = named.label;
+                        }
+                        paths_by_type[k].push(named.points);
+                    }
+                }
+                self.groups = names
+                    .into_iter()
+                    .zip(paths_by_type)
+                    .map(|(name, paths)| PathGroup { name, paths })
+                    .collect();
+                self.group_idx = 0;
                 self.status = format!(
-                    "Generated {paths} path(s) of {} · {} series",
+                    "Generated {paths} path(s) of {} · {} type(s)",
                     desc.name,
-                    self.series.len()
+                    self.groups.len()
                 );
             }
             Err(_) => {
-                self.series.clear();
+                self.groups.clear();
                 self.status =
                     format!("{} panicked while sampling — adjust its parameters", desc.name);
             }
         }
     }
 
-    /// Indices into `series` that the chart should draw, per the current view.
-    pub fn shown_indices(&self) -> Vec<usize> {
-        match self.view {
-            ChartView::All => (0..self.series.len()).collect(),
-            ChartView::Single(i) if i < self.series.len() => vec![i],
-            ChartView::Single(_) => (0..self.series.len()).collect(),
+    /// Select which path-type group the chart shows, if it exists.
+    pub fn select_group(&mut self, index: usize) {
+        if index < self.groups.len() {
+            self.group_idx = index;
         }
     }
 
-    /// Step the chart through: all paths → path 0 → … → path N-1 → all.
-    pub fn cycle_view(&mut self, delta: isize) {
-        let n = self.series.len();
-        if n == 0 {
-            return;
-        }
-        let total = n as isize + 1;
-        let current = match self.view {
-            ChartView::All => 0,
-            ChartView::Single(i) => i as isize + 1,
-        };
-        let next = (current + delta).rem_euclid(total);
-        self.view = if next == 0 {
-            ChartView::All
-        } else {
-            ChartView::Single((next - 1) as usize)
-        };
+    /// The path-type group currently shown, if any.
+    pub fn current_group(&self) -> Option<&PathGroup> {
+        self.groups.get(self.group_idx)
     }
 
-    /// Data bounds across the currently-shown series, padded for display.
+    /// Data bounds across the current group's paths, padded for display.
     pub fn bounds(&self) -> ([f64; 2], [f64; 2]) {
-        let shown = self.shown_indices();
-        if shown.is_empty() {
+        let Some(group) = self.current_group() else {
             return ([0.0, 1.0], [0.0, 1.0]);
-        }
+        };
         let mut x_max = 0.0f64;
         let mut y_min = f64::INFINITY;
         let mut y_max = f64::NEG_INFINITY;
-        for &k in &shown {
-            for &(x, y) in &self.series[k].points {
+        for path in &group.paths {
+            for &(x, y) in path {
                 x_max = x_max.max(x);
                 if y.is_finite() {
                     y_min = y_min.min(y);
@@ -350,8 +343,8 @@ mod tests {
     fn generate_uses_default_path_count() {
         let mut app = App::new();
         app.generate();
-        assert_eq!(app.series.len(), 10);
-        assert!(app.series[0].points.len() > 100);
+        assert_eq!(app.groups[0].paths.len(), 10);
+        assert!(app.groups[0].paths[0].len() > 100);
     }
 
     #[test]
@@ -360,7 +353,7 @@ mod tests {
         let last = app.fields.len() - 1;
         app.fields[last].buffer = "3".to_string();
         app.generate();
-        assert_eq!(app.series.len(), 3);
+        assert_eq!(app.groups[0].paths.len(), 3);
     }
 
     #[test]
@@ -368,7 +361,7 @@ mod tests {
         let mut app = App::new();
         app.fields[0].buffer = "not-a-number".to_string();
         app.generate();
-        assert!(app.series.is_empty());
+        assert!(app.groups.is_empty());
         assert!(app.status.contains("expected"));
     }
 
@@ -394,7 +387,7 @@ mod tests {
             let last = app.fields.len() - 1;
             app.fields[last].buffer = "1".to_string();
             app.generate();
-            if app.series.is_empty() {
+            if app.groups.is_empty() {
                 failed.push(app.selected().unwrap().name);
             } else {
                 ok += 1;
@@ -408,41 +401,32 @@ mod tests {
     }
 
     #[test]
-    fn cycle_view_steps_through_all_then_each_path() {
-        let mut app = App::new();
-        let last = app.fields.len() - 1;
-        app.fields[last].buffer = "3".to_string();
-        app.generate();
-        assert!(matches!(app.view, ChartView::All));
-        assert_eq!(app.shown_indices().len(), 3);
-
-        app.cycle_view(1);
-        assert!(matches!(app.view, ChartView::Single(0)));
-        assert_eq!(app.shown_indices(), vec![0]);
-
-        app.cycle_view(1);
-        app.cycle_view(1);
-        assert!(matches!(app.view, ChartView::Single(2)));
-
-        app.cycle_view(1);
-        assert!(matches!(app.view, ChartView::All));
-
-        app.cycle_view(-1);
-        assert!(matches!(app.view, ChartView::Single(2)));
-    }
-
-    #[test]
-    fn sv_model_labels_components_and_isolates_first() {
+    fn sv_model_groups_components_by_type_and_switches() {
         let mut app = App::new();
         let idx = app.visible().iter().position(|d| d.name == "Sabr").unwrap();
         app.list_state.select(Some(idx));
         app.rebuild_fields();
         let last = app.fields.len() - 1;
-        app.fields[last].buffer = "1".to_string();
+        app.fields[last].buffer = "4".to_string();
         app.generate();
-        let labels: Vec<&str> = app.series.iter().map(|s| s.label.as_str()).collect();
-        assert_eq!(labels, vec!["asset", "variance"]);
-        assert!(matches!(app.view, ChartView::Single(0)));
+
+        let names: Vec<&str> = app.groups.iter().map(|g| g.name.as_str()).collect();
+        assert_eq!(names, vec!["asset", "variance"]);
+        assert!(app.groups.iter().all(|g| g.paths.len() == 4));
+        assert_eq!(app.group_idx, 0);
+
+        app.select_group(1);
+        assert_eq!(app.group_idx, 1);
+        app.select_group(9);
+        assert_eq!(app.group_idx, 1);
+    }
+
+    #[test]
+    fn single_state_process_has_one_group() {
+        let mut app = App::new();
+        app.generate();
+        assert_eq!(app.groups.len(), 1);
+        assert_eq!(app.groups[0].name, "path");
     }
 
     #[test]
@@ -459,6 +443,6 @@ mod tests {
         terminal
             .draw(|frame| crate::app::ui::draw(frame, &mut app))
             .unwrap();
-        assert!(!app.series.is_empty());
+        assert!(!app.groups.is_empty());
     }
 }

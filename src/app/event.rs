@@ -20,11 +20,6 @@ pub fn handle_key(app: &mut App, key: KeyEvent) {
         handle_filter(app, key);
         return;
     }
-    match key.code {
-        KeyCode::Left => return app.cycle_view(-1),
-        KeyCode::Right => return app.cycle_view(1),
-        _ => {}
-    }
     match app.focus {
         Focus::List => handle_list(app, key),
         Focus::Form => handle_form(app, key),
@@ -56,6 +51,7 @@ fn handle_list(app: &mut App, key: KeyEvent) {
         KeyCode::Up | KeyCode::Char('k') => move_selection(app, -1),
         KeyCode::Down | KeyCode::Char('j') => move_selection(app, 1),
         KeyCode::Enter | KeyCode::Char('g') => app.generate(),
+        KeyCode::Char(c @ '1'..='9') => app.select_group(c as usize - '1' as usize),
         KeyCode::Char('/') => app.filtering = true,
         KeyCode::Tab => {
             app.focus = Focus::Form;
