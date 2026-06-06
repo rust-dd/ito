@@ -9,8 +9,8 @@ use rand::Rng;
 use rand_distr::Distribution;
 use rand_distr::Exp;
 use rand_distr::Normal;
-use stochastic_rs_stochastic::correlation::transformed_ou::TransformedOU;
 use stochastic_rs_stochastic::correlation::transformed_ou::Transformation;
+use stochastic_rs_stochastic::correlation::transformed_ou::TransformedOU;
 use stochastic_rs_stochastic::diffusion::cfou::Cfou;
 use stochastic_rs_stochastic::diffusion::cir::Cir;
 use stochastic_rs_stochastic::diffusion::regime_switching::RegimeSwitchingDiffusion;
@@ -42,6 +42,7 @@ use stochastic_rs_stochastic::simd_rng::Unseeded;
 use stochastic_rs_stochastic::volatility::HestonPow;
 use stochastic_rs_stochastic::volatility::heston::Heston;
 use stochastic_rs_stochastic::volatility::heston2d::Heston2D;
+use stochastic_rs_stochastic::volatility::multifactor_heston::MultifactorHeston;
 use stochastic_rs_stochastic::volatility::multifactor_sabr::MultifactorSabr;
 
 use crate::registry::Category;
@@ -55,6 +56,7 @@ use crate::registry::adapters::ComplexPath;
 use crate::registry::adapters::Curve;
 use crate::registry::adapters::MultiDim;
 use crate::registry::adapters::Path1D;
+use crate::registry::adapters::TupleDim;
 use crate::registry::adapters::VecPath;
 
 fn build_heston(values: &ParamValues) -> Box<dyn ChartSource> {
@@ -127,7 +129,8 @@ inventory::submit! {
 }
 
 fn build_merton(values: &ParamValues) -> Box<dyn ChartSource> {
-    let jumps = Normal::<f64>::new(values.f64("jump_mean"), values.f64("jump_std").max(1e-9)).unwrap();
+    let jumps =
+        Normal::<f64>::new(values.f64("jump_mean"), values.f64("jump_std").max(1e-9)).unwrap();
     let cpoisson = CompoundPoisson::new(
         jumps,
         Poisson::new(
@@ -212,7 +215,12 @@ fn build_kou(values: &ParamValues) -> Box<dyn ChartSource> {
             eta_up: values.f64("eta_up").max(1.01),
             eta_down: values.f64("eta_down").max(0.01),
         },
-        Poisson::new(values.f64("lambda"), Some(values.usize("n")), values.opt_f64("t"), Unseeded),
+        Poisson::new(
+            values.f64("lambda"),
+            Some(values.usize("n")),
+            values.opt_f64("t"),
+            Unseeded,
+        ),
         Unseeded,
     );
     Box::new(Path1D(Kou::new(
@@ -563,7 +571,12 @@ fn build_cir_2f(values: &ParamValues) -> Box<dyn ChartSource> {
         Some(true),
         Unseeded,
     );
-    Box::new(Path1D(Cir2F::new(x, y, flat_curve as fn(f64) -> f64, Unseeded)))
+    Box::new(Path1D(Cir2F::new(
+        x,
+        y,
+        flat_curve as fn(f64) -> f64,
+        Unseeded,
+    )))
 }
 
 inventory::submit! {
@@ -876,7 +889,9 @@ inventory::submit! {
 
 fn build_volterra(values: &ParamValues) -> Box<dyn ChartSource> {
     Box::new(Path1D(Volterra::<f64>::new(
-        VolterraKernel::FractionalBM { h: values.f64("hurst") },
+        VolterraKernel::FractionalBM {
+            h: values.f64("hurst"),
+        },
         values.usize("n"),
         values.opt_f64("t"),
         Unseeded,
@@ -920,8 +935,13 @@ inventory::submit! {
 
 fn build_ctrw(values: &ParamValues) -> Box<dyn ChartSource> {
     Box::new(Path1D(Ctrw::<f64>::new(
-        CtrwWaitingLaw::Exponential { rate: values.f64("rate") },
-        CtrwJumpLaw::Normal { mean: values.f64("jump_mean"), std: values.f64("jump_std") },
+        CtrwWaitingLaw::Exponential {
+            rate: values.f64("rate"),
+        },
+        CtrwJumpLaw::Normal {
+            mean: values.f64("jump_mean"),
+            std: values.f64("jump_std"),
+        },
         values.usize("n"),
         values.opt_f64("x0"),
         values.opt_f64("t"),
@@ -949,7 +969,12 @@ fn build_compound_custom(values: &ParamValues) -> Box<dyn ChartSource> {
     let n = values.usize("n");
     let t = values.opt_f64("t");
     let times = Exp::new(values.f64("rate").max(0.01)).unwrap();
-    let customjt = CustomJt::new(Some(n), t, Exp::new(values.f64("rate").max(0.01)).unwrap(), Unseeded);
+    let customjt = CustomJt::new(
+        Some(n),
+        t,
+        Exp::new(values.f64("rate").max(0.01)).unwrap(),
+        Unseeded,
+    );
     Box::new(MultiDim {
         process: CompoundCustom::new(
             Some(n),
@@ -975,5 +1000,75 @@ inventory::submit! {
             ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
         ],
         build: build_compound_custom,
+    }
+}
+
+fn build_compound_poisson(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(MultiDim {
+        process: CompoundPoisson::new(
+            Normal::new(values.f64("jump_mean"), values.f64("jump_std").max(1e-9)).unwrap(),
+            Poisson::new(
+                values.f64("lambda"),
+                Some(values.usize("n")),
+                values.opt_f64("t"),
+                Unseeded,
+            ),
+            Unseeded,
+        ),
+        components: &["cumulative", "jump sizes", "arrival times"],
+    })
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "CompoundPoisson",
+        category: Category::Process,
+        params: &[
+            ParamSpec { name: "lambda", kind: ParamKind::F64, default: ParamDefault::F64(5.0), doc: "Jump intensity" },
+            ParamSpec { name: "jump_mean", kind: ParamKind::F64, default: ParamDefault::F64(0.0), doc: "Mean jump size" },
+            ParamSpec { name: "jump_std", kind: ParamKind::F64, default: ParamDefault::F64(0.2), doc: "Jump size std" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_compound_poisson,
+    }
+}
+
+fn build_multifactor_heston(values: &ParamValues) -> Box<dyn ChartSource> {
+    Box::new(TupleDim(MultifactorHeston::<f64, 2>::new(
+        values.opt_f64("s0"),
+        [values.f64("v0_1"), values.f64("v0_2")],
+        [values.f64("kappa_1"), values.f64("kappa_2")],
+        [values.f64("theta_1"), values.f64("theta_2")],
+        [values.f64("sigma_1"), values.f64("sigma_2")],
+        [values.f64("rho_1"), values.f64("rho_2")],
+        values.f64("mu"),
+        values.usize("n"),
+        values.opt_f64("t"),
+        Unseeded,
+    )))
+}
+
+inventory::submit! {
+    ProcessDescriptor {
+        name: "MultifactorHeston",
+        category: Category::Volatility,
+        params: &[
+            ParamSpec { name: "s0", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(100.0)), doc: "Initial spot" },
+            ParamSpec { name: "v0_1", kind: ParamKind::F64, default: ParamDefault::F64(0.04), doc: "Variance 1 start" },
+            ParamSpec { name: "v0_2", kind: ParamKind::F64, default: ParamDefault::F64(0.04), doc: "Variance 2 start" },
+            ParamSpec { name: "kappa_1", kind: ParamKind::F64, default: ParamDefault::F64(1.5), doc: "Variance 1 reversion" },
+            ParamSpec { name: "kappa_2", kind: ParamKind::F64, default: ParamDefault::F64(0.5), doc: "Variance 2 reversion" },
+            ParamSpec { name: "theta_1", kind: ParamKind::F64, default: ParamDefault::F64(0.04), doc: "Variance 1 mean" },
+            ParamSpec { name: "theta_2", kind: ParamKind::F64, default: ParamDefault::F64(0.04), doc: "Variance 2 mean" },
+            ParamSpec { name: "sigma_1", kind: ParamKind::F64, default: ParamDefault::F64(0.3), doc: "Vol of vol 1" },
+            ParamSpec { name: "sigma_2", kind: ParamKind::F64, default: ParamDefault::F64(0.2), doc: "Vol of vol 2" },
+            ParamSpec { name: "rho_1", kind: ParamKind::F64, default: ParamDefault::F64(-0.7), doc: "Correlation 1" },
+            ParamSpec { name: "rho_2", kind: ParamKind::F64, default: ParamDefault::F64(-0.5), doc: "Correlation 2" },
+            ParamSpec { name: "mu", kind: ParamKind::F64, default: ParamDefault::F64(0.05), doc: "Drift" },
+            ParamSpec { name: "n", kind: ParamKind::Usize, default: ParamDefault::Usize(1000), doc: "Steps" },
+            ParamSpec { name: "t", kind: ParamKind::OptF64, default: ParamDefault::OptF64(Some(1.0)), doc: "Horizon" },
+        ],
+        build: build_multifactor_heston,
     }
 }

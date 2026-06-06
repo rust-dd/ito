@@ -13,7 +13,11 @@ use crate::registry::ChartSource;
 use crate::registry::NamedSeries;
 
 fn series(arr: &Array1<f64>, label: String) -> NamedSeries {
-    let points = arr.iter().enumerate().map(|(i, &y)| (i as f64, y)).collect();
+    let points = arr
+        .iter()
+        .enumerate()
+        .map(|(i, &y)| (i as f64, y))
+        .collect();
     NamedSeries { label, points }
 }
 
@@ -77,13 +81,25 @@ where
             .sample_par(m)
             .iter()
             .map(|path| {
-                let real: Vec<(f64, f64)> =
-                    path.iter().enumerate().map(|(i, z)| (i as f64, z.re)).collect();
-                let imag: Vec<(f64, f64)> =
-                    path.iter().enumerate().map(|(i, z)| (i as f64, z.im)).collect();
+                let real: Vec<(f64, f64)> = path
+                    .iter()
+                    .enumerate()
+                    .map(|(i, z)| (i as f64, z.re))
+                    .collect();
+                let imag: Vec<(f64, f64)> = path
+                    .iter()
+                    .enumerate()
+                    .map(|(i, z)| (i as f64, z.im))
+                    .collect();
                 vec![
-                    NamedSeries { label: "real".to_string(), points: real },
-                    NamedSeries { label: "imag".to_string(), points: imag },
+                    NamedSeries {
+                        label: "real".to_string(),
+                        points: real,
+                    },
+                    NamedSeries {
+                        label: "imag".to_string(),
+                        points: imag,
+                    },
                 ]
             })
             .collect()
@@ -107,8 +123,15 @@ where
                     .rows()
                     .into_iter()
                     .map(|row| {
-                        let points = row.iter().enumerate().map(|(i, &y)| (i as f64, y)).collect();
-                        NamedSeries { label: "curve".to_string(), points }
+                        let points = row
+                            .iter()
+                            .enumerate()
+                            .map(|(i, &y)| (i as f64, y))
+                            .collect();
+                        NamedSeries {
+                            label: "curve".to_string(),
+                            points,
+                        }
                     })
                     .collect()
             })
@@ -133,6 +156,30 @@ where
                     .iter()
                     .map(|comp| series(comp, "component".to_string()))
                     .collect()
+            })
+            .collect()
+    }
+}
+
+/// Adapter for a head-plus-array tuple output (`Output = (Array1<f64>,
+/// [Array1<f64>; N])`), e.g. the spot plus `N` variance factors of a
+/// multi-factor Heston model.
+pub struct TupleDim<P>(pub P);
+
+impl<const N: usize, P> ChartSource for TupleDim<P>
+where
+    P: ProcessExt<f64, Output = (Array1<f64>, [Array1<f64>; N])>,
+{
+    fn sample_par(&self, m: usize) -> Vec<Vec<NamedSeries>> {
+        self.0
+            .sample_par(m)
+            .iter()
+            .map(|(head, tail)| {
+                let mut out = vec![series(head, "asset".to_string())];
+                for (k, arr) in tail.iter().enumerate() {
+                    out.push(series(arr, format!("variance {}", k + 1)));
+                }
+                out
             })
             .collect()
     }
