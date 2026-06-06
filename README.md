@@ -4,6 +4,13 @@ A terminal UI for exploring the [`stochastic-rs`](https://github.com/rust-dd/sto
 process library. Pick any process by name, edit every parameter, generate `M`
 Monte-Carlo paths, and plot them — all on the CPU, in `f64`.
 
+## Demo
+
+<!-- On github.com, click ✏️ to edit this README, then drag demo.mp4 onto this
+     line. GitHub uploads it and replaces it with a
+     https://github.com/user-attachments/assets/… link that renders as an inline
+     video player. Commit, and you can delete this comment. -->
+
 ```
 cargo run
 ```
