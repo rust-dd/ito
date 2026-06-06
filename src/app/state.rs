@@ -191,9 +191,11 @@ impl App {
         let build = desc.build;
         let previous_hook = std::panic::take_hook();
         std::panic::set_hook(Box::new(|_| {}));
+        let started = std::time::Instant::now();
         let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             build(&values).sample_par(paths)
         }));
+        let elapsed = started.elapsed();
         std::panic::set_hook(previous_hook);
         match outcome {
             Ok(samples) => {
@@ -218,9 +220,10 @@ impl App {
                     .collect();
                 self.group_idx = 0;
                 self.status = format!(
-                    "Generated {paths} path(s) of {} · {} type(s)",
+                    "Generated {paths} path(s) of {} · {} type(s) · {:.1} ms",
                     desc.name,
-                    self.groups.len()
+                    self.groups.len(),
+                    elapsed.as_secs_f64() * 1000.0
                 );
             }
             Err(_) => {
