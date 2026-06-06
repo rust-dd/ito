@@ -218,7 +218,9 @@ impl App {
                     .zip(paths_by_type)
                     .map(|(name, paths)| PathGroup { name, paths })
                     .collect();
-                self.group_idx = 0;
+                // Keep the selected path type (and grid view) across re-generation
+                // instead of snapping back to the first one.
+                self.group_idx = self.group_idx.min(self.groups.len().saturating_sub(1));
                 self.status = format!(
                     "Generated {paths} path(s) of {} · {} type(s) · {:.1} ms",
                     desc.name,
@@ -467,6 +469,19 @@ mod tests {
         app.generate();
         assert_eq!(app.groups.len(), 1);
         assert_eq!(app.groups[0].name, "path");
+    }
+
+    #[test]
+    fn regeneration_keeps_selected_path_type() {
+        let mut app = App::new();
+        let idx = app.visible().iter().position(|d| d.name == "Sabr").unwrap();
+        app.list_state.select(Some(idx));
+        app.rebuild_fields();
+        app.generate();
+        app.select_group(1);
+        assert_eq!(app.group_idx, 1);
+        app.generate();
+        assert_eq!(app.group_idx, 1);
     }
 
     #[test]
