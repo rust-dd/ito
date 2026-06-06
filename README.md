@@ -6,13 +6,12 @@ Monte-Carlo paths, and plot them — all on the CPU, in `f64`.
 
 ## Demo
 
-<!-- On github.com, click ✏️ to edit this README, then drag demo.mp4 onto this
-     line. GitHub uploads it and replaces it with a
-     https://github.com/user-attachments/assets/… link that renders as an inline
-     video player. Commit, and you can delete this comment. -->
+<video src="https://github.com/rust-dd/ito/raw/main/assets/demo.mp4" controls width="100%"></video>
+
+[▶ watch the demo](https://github.com/rust-dd/ito/raw/main/assets/demo.mp4)
 
 ```
-cargo run
+cargo run --release
 ```
 
 ## Keys
