@@ -21,6 +21,7 @@ use ratatui::widgets::Paragraph;
 
 use crate::app::state::App;
 use crate::app::state::Focus;
+use crate::app::state::bounds_of;
 
 pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
@@ -125,15 +126,39 @@ fn draw_form(frame: &mut Frame, app: &App, area: Rect) {
 }
 
 fn draw_chart(frame: &mut Frame, app: &App, area: Rect) {
-    let ([x_min, x_max], [y_min, y_max]) = app.bounds();
+    if app.groups.is_empty() {
+        frame.render_widget(
+            Block::bordered().title(" Chart \u{00b7} press \u{23ce}/g to generate "),
+            area,
+        );
+        return;
+    }
+    if app.grid && app.groups.len() > 1 {
+        let n = app.groups.len();
+        let cols = if n <= 4 { 2 } else { 3 };
+        let rows = n.div_ceil(cols);
+        let row_areas = Layout::vertical(vec![Constraint::Ratio(1, rows as u32); rows]).split(area);
+        for r in 0..rows {
+            let col_areas = Layout::horizontal(vec![Constraint::Ratio(1, cols as u32); cols])
+                .split(row_areas[r]);
+            for c in 0..cols {
+                let gi = r * cols + c;
+                if gi < n {
+                    render_group(frame, app, gi, col_areas[c], false);
+                }
+            }
+        }
+    } else {
+        render_group(frame, app, app.group_idx, area, true);
+    }
+}
 
-    // Thin each dense path (n up to 1000) down to roughly the chart's Braille
-    // resolution so segments don't pile into vertical smears.
+fn render_group(frame: &mut Frame, app: &App, gi: usize, area: Rect, single: bool) {
+    let group = &app.groups[gi];
+    let ([x_min, x_max], [y_min, y_max]) = bounds_of(&group.paths);
     let target = (area.width as usize).saturating_mul(2).max(64);
-    let prepared: Vec<Vec<(f64, f64)>> = match app.current_group() {
-        Some(group) => group.paths.iter().map(|p| downsample(p, target)).collect(),
-        None => Vec::new(),
-    };
+    let prepared: Vec<Vec<(f64, f64)>> =
+        group.paths.iter().map(|p| downsample(p, target)).collect();
     let count = prepared.len();
 
     let datasets: Vec<Dataset> = prepared
@@ -148,21 +173,18 @@ fn draw_chart(frame: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
 
-    let title = match app.current_group() {
-        None => " Chart \u{00b7} press \u{23ce}/g to generate ".to_string(),
-        Some(group) if app.groups.len() > 1 => format!(
-            " Chart \u{00b7} {} [{}/{}] \u{00b7} {count} paths \u{00b7} 1\u{2013}{} switch type ",
-            group.name,
-            app.group_idx + 1,
-            app.groups.len(),
-            app.groups.len(),
-        ),
-        Some(group) => format!(" Chart \u{00b7} {} \u{00b7} {count} paths ", group.name),
+    let border = if !single && gi == app.group_idx {
+        Color::Cyan
+    } else {
+        Color::DarkGray
     };
-
     let mid = (y_min + y_max) / 2.0;
     let chart = Chart::new(datasets)
-        .block(Block::bordered().title(title))
+        .block(
+            Block::bordered()
+                .title(chart_title(app, gi, count, single))
+                .border_style(Style::default().fg(border)),
+        )
         .x_axis(
             Axis::default()
                 .style(Style::default().fg(Color::DarkGray))
@@ -182,13 +204,50 @@ fn draw_chart(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_widget(chart, area);
 }
 
+fn chart_title(app: &App, gi: usize, count: usize, single: bool) -> Line<'static> {
+    let name = app.groups[gi].name.clone();
+    let active = Style::default()
+        .fg(Color::Black)
+        .bg(Color::Cyan)
+        .add_modifier(Modifier::BOLD);
+    let dim = Style::default().fg(Color::DarkGray);
+
+    if !single {
+        let key_style = if gi == app.group_idx { active } else { dim };
+        return Line::from(vec![
+            Span::raw(" "),
+            Span::styled(format!("[{}]", gi + 1), key_style),
+            Span::raw(format!(" {name} \u{00b7} {count} paths ")),
+        ]);
+    }
+    if app.groups.len() > 1 {
+        // Bound number keys as [1][2][3]…, the active one highlighted, then the
+        // currently shown path type.
+        let mut spans = vec![Span::raw(" ")];
+        for i in 0..app.groups.len() {
+            let style = if i == app.group_idx { active } else { dim };
+            spans.push(Span::styled(format!("[{}]", i + 1), style));
+        }
+        spans.push(Span::raw(format!(
+            " \u{00b7} {name} \u{00b7} {count} paths \u{00b7} v: grid "
+        )));
+        Line::from(spans)
+    } else {
+        Line::from(format!(" {name} \u{00b7} {count} paths "))
+    }
+}
+
 fn draw_status(frame: &mut Frame, app: &App, area: Rect) {
     let hint = if app.filtering {
         "filter: type to match \u{00b7} \u{23ce} apply \u{00b7} Esc clear"
     } else {
         match app.focus {
-            Focus::List => "\u{2191}\u{2193} select \u{00b7} \u{23ce}/g generate \u{00b7} 1-9 path type \u{00b7} / filter \u{00b7} Tab \u{2192} form \u{00b7} q quit",
-            Focus::Form => "\u{2191}\u{2193} field \u{00b7} type to edit \u{00b7} \u{23ce}/g generate \u{00b7} Tab/Esc \u{2192} list",
+            Focus::List => {
+                "\u{2191}\u{2193} select \u{00b7} \u{23ce}/g gen \u{00b7} 1-9 type \u{00b7} v grid \u{00b7} / filter \u{00b7} Tab form \u{00b7} q quit"
+            }
+            Focus::Form => {
+                "\u{2191}\u{2193} field \u{00b7} type to edit \u{00b7} \u{23ce}/g generate \u{00b7} Tab/Esc \u{2192} list"
+            }
         }
     };
     let line = Line::from(vec![

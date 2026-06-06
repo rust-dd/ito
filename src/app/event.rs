@@ -52,6 +52,7 @@ fn handle_list(app: &mut App, key: KeyEvent) {
         KeyCode::Down | KeyCode::Char('j') => move_selection(app, 1),
         KeyCode::Enter | KeyCode::Char('g') => app.generate(),
         KeyCode::Char(c @ '1'..='9') => app.select_group(c as usize - '1' as usize),
+        KeyCode::Char('v') => app.toggle_grid(),
         KeyCode::Char('/') => app.filtering = true,
         KeyCode::Tab => {
             app.focus = Focus::Form;
@@ -100,7 +101,6 @@ fn move_selection(app: &mut App, delta: isize) {
 
 fn reset_selection(app: &mut App) {
     let len = app.visible().len();
-    app.list_state
-        .select(if len == 0 { None } else { Some(0) });
+    app.list_state.select(if len == 0 { None } else { Some(0) });
     app.rebuild_fields();
 }

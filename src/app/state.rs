@@ -72,6 +72,7 @@ pub struct App {
     pub filtering: bool,
     pub groups: Vec<PathGroup>,
     pub group_idx: usize,
+    pub grid: bool,
     pub status: String,
     pub should_quit: bool,
 }
@@ -94,6 +95,7 @@ impl App {
             filtering: false,
             groups: Vec::new(),
             group_idx: 0,
+            grid: false,
             status: "Select a process · ⏎/g generate · Tab switch pane · q quit".to_string(),
             should_quit: false,
         };
@@ -130,8 +132,12 @@ impl App {
                     crate::registry::ParamDefault::F64(v) => format_f64(v),
                     crate::registry::ParamDefault::Usize(v) => v.to_string(),
                     crate::registry::ParamDefault::OptF64(v) => opt_to_string(v, format_f64),
-                    crate::registry::ParamDefault::OptUsize(v) => opt_to_string(v, |u| u.to_string()),
-                    crate::registry::ParamDefault::OptBool(v) => opt_to_string(v, |b| b.to_string()),
+                    crate::registry::ParamDefault::OptUsize(v) => {
+                        opt_to_string(v, |u| u.to_string())
+                    }
+                    crate::registry::ParamDefault::OptBool(v) => {
+                        opt_to_string(v, |b| b.to_string())
+                    }
                     crate::registry::ParamDefault::F64Vec(v) => format_f64_slice(v),
                     crate::registry::ParamDefault::OptF64Vec(v) => {
                         opt_to_string(v, format_f64_slice)
@@ -219,8 +225,10 @@ impl App {
             }
             Err(_) => {
                 self.groups.clear();
-                self.status =
-                    format!("{} panicked while sampling — adjust its parameters", desc.name);
+                self.status = format!(
+                    "{} panicked while sampling — adjust its parameters",
+                    desc.name
+                );
             }
         }
     }
@@ -232,34 +240,9 @@ impl App {
         }
     }
 
-    /// The path-type group currently shown, if any.
-    pub fn current_group(&self) -> Option<&PathGroup> {
-        self.groups.get(self.group_idx)
-    }
-
-    /// Data bounds across the current group's paths, padded for display.
-    pub fn bounds(&self) -> ([f64; 2], [f64; 2]) {
-        let Some(group) = self.current_group() else {
-            return ([0.0, 1.0], [0.0, 1.0]);
-        };
-        let mut x_max = 0.0f64;
-        let mut y_min = f64::INFINITY;
-        let mut y_max = f64::NEG_INFINITY;
-        for path in &group.paths {
-            for &(x, y) in path {
-                x_max = x_max.max(x);
-                if y.is_finite() {
-                    y_min = y_min.min(y);
-                    y_max = y_max.max(y);
-                }
-            }
-        }
-        if !y_min.is_finite() || !y_max.is_finite() {
-            y_min = 0.0;
-            y_max = 1.0;
-        }
-        let pad = ((y_max - y_min) * 0.05).max(1e-9);
-        ([0.0, x_max.max(1.0)], [y_min - pad, y_max + pad])
+    /// Toggle between the single (paged) chart and the grid of all groups.
+    pub fn toggle_grid(&mut self) {
+        self.grid = !self.grid;
     }
 }
 
@@ -330,6 +313,28 @@ fn format_f64_slice(values: &[f64]) -> String {
         .map(|v| v.to_string())
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// Padded `(x, y)` bounds across a set of paths, for chart axis scaling.
+pub fn bounds_of(paths: &[Vec<(f64, f64)>]) -> ([f64; 2], [f64; 2]) {
+    let mut x_max = 0.0f64;
+    let mut y_min = f64::INFINITY;
+    let mut y_max = f64::NEG_INFINITY;
+    for path in paths {
+        for &(x, y) in path {
+            x_max = x_max.max(x);
+            if y.is_finite() {
+                y_min = y_min.min(y);
+                y_max = y_max.max(y);
+            }
+        }
+    }
+    if !y_min.is_finite() || !y_max.is_finite() {
+        y_min = 0.0;
+        y_max = 1.0;
+    }
+    let pad = ((y_max - y_min) * 0.05).max(1e-9);
+    ([0.0, x_max.max(1.0)], [y_min - pad, y_max + pad])
 }
 
 fn is_none(s: &str) -> bool {
@@ -459,6 +464,24 @@ mod tests {
         app.generate();
         assert_eq!(app.groups.len(), 1);
         assert_eq!(app.groups[0].name, "path");
+    }
+
+    #[test]
+    fn grid_view_renders_all_groups() {
+        use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
+        let mut app = App::new();
+        let idx = app.visible().iter().position(|d| d.name == "Sabr").unwrap();
+        app.list_state.select(Some(idx));
+        app.rebuild_fields();
+        app.generate();
+        app.toggle_grid();
+        assert!(app.grid);
+        assert_eq!(app.groups.len(), 2);
+        let mut terminal = Terminal::new(TestBackend::new(150, 24)).unwrap();
+        terminal
+            .draw(|frame| crate::app::ui::draw(frame, &mut app))
+            .unwrap();
     }
 
     #[test]
