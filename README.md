@@ -6,9 +6,9 @@ Monte-Carlo paths, and plot them — all on the CPU, in `f64`.
 
 ## Demo
 
-<video src="https://github.com/rust-dd/ito/raw/main/assets/demo.mp4" controls width="100%"></video>
+![ito demo](assets/demo.gif)
 
-[▶ watch the demo](https://github.com/rust-dd/ito/raw/main/assets/demo.mp4)
+[▶ full-resolution mp4](assets/demo.mp4)
 
 ```
 cargo run --release
